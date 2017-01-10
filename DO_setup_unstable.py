@@ -100,9 +100,9 @@ def get_log():
 
 def send_mail(text='', file=None):
 
-    to = 'p.patel@thesynapses.com'
-    user = 'developerthesynapses@gmail.com'
-    password = '123qwe,./'
+    to = '--------'
+    user = '--------'
+    password = '--------'
     server = "smtp.gmail.com"
     port = 587
 
