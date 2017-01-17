@@ -41,17 +41,16 @@ def get_initials():
     setup_admin_user = ''
     setup_firewall = ''
     while setup_mysql != 'yes' and setup_mysql != 'no':
-        setup_mysql = raw_input('Do you want to Newly setup Mysql (yes/no): ')
-        print setup_mysql
+        setup_mysql = raw_input(bcolors.ENDC + bcolors.HEADER + '\nDo you want to Newly setup Mysql (yes/no): ' + bcolors.ENDC)
     if setup_mysql == 'yes':
         while not new_user:
-            new_user = raw_input('Please Enter MySQL username to be created: ')
+            new_user = raw_input(bcolors.HEADER + 'Please Enter MySQL username to be created: ' + bcolors.ENDC)
         while not new_database:
-            new_database = raw_input('Please Enter MySQL Database name to be created: ')
+            new_database = raw_input(bcolors.HEADER + 'Please Enter MySQL Database name to be created: ' + bcolors.ENDC)
     while setup_admin_user != 'yes' and setup_admin_user != 'no':
-        setup_admin_user = raw_input('Do you want to setup Admin User(yes/no): ')
+        setup_admin_user = raw_input(bcolors.HEADER + 'Do you want to setup Admin User(yes/no): ' + bcolors.ENDC)
     while setup_firewall != 'yes' and setup_firewall != 'no':
-        setup_firewall = raw_input('Do you want to setup firewall (yes/no): ')
+        setup_firewall = raw_input(bcolors.HEADER + 'Do you want to setup firewall (yes/no): ' + bcolors.ENDC)
     return new_user, new_database, setup_mysql, setup_admin_user, setup_firewall
 
 
@@ -98,7 +97,7 @@ def send_mail(text='', file=None):
 
 
 def init():
-    print bcolors.UNDERLINE + bcolors.HEADER + bcolors.BOLD + "Starting DO Automated installation ... " + bcolors.ENDC
+    print bcolors.UNDERLINE + bcolors.HEADER + bcolors.BOLD + "\nStarting DO Automated installation ... \n" + bcolors.ENDC
     sys.stdout.write(bcolors.OKBLUE + '1. Creating temp file ... ' + bcolors.ENDC)
     try:
         basedir = os.path.dirname(temp_file)
@@ -513,11 +512,11 @@ def apply_firewall_rules():
                     if int(subprocess.check_output('iptables -I INPUT -i %s -s %s -d %s -p tcp --dport %s -j ACCEPT 1>%s 2>>%s; echo $?' % (inf, ip, src, port, temp_file, temp_file), shell=True)) != 0:
                         print bcolors.FAIL + 'Failed!' + bcolors.ENDC
                         print bcolors.FAIL + get_log() + bcolors.ENDC
-                        rules += '\n----[+]-iptables -I INPUT -i %s -s %s -d %s -p tcp --dport %s -j ACCEPT' % (inf, ip, src, port) + '   Failed!'
+                        rules += '\n        ----[+]-iptables -I INPUT -i %s -s %s -d %s -p tcp --dport %s -j ACCEPT' % (inf, ip, src, port) + '   Failed!'
                     else:
                         print bcolors.OKGREEN + 'Done!' + bcolors.ENDC
-                        print '   [+]' + inf + ' ' + src + ':' + str(port) + ' Allowed from' + ip
-                        rules += '\n----[+]-iptables -I INPUT -i %s -s %s -d %s -p tcp --dport %s -j ACCEPT' % (inf, ip, src, port) + '   Done!'
+                        print '   [+]' + inf + ' ' + src + ':' + str(port) + ' Allowed from ' + ip
+                        rules += '\n        ----[+]-iptables -I INPUT -i %s -s %s -d %s -p tcp --dport %s -j ACCEPT' % (inf, ip, src, port) + '   Done!'
         if rule['deny']:
             for ip in rule['deny']:
                 if ip != 'ALL':
@@ -525,11 +524,11 @@ def apply_firewall_rules():
                     if int(subprocess.check_output('iptables -I INPUT -i %s -s %s -d %s -p tcp --dport %s -j REJECT 1>%s 2>>%s; echo $?' % (inf, ip, src, port, temp_file, temp_file), shell=True)) != 0:
                         print bcolors.FAIL + 'Failed!' + bcolors.ENDC
                         print bcolors.FAIL + get_log() + bcolors.ENDC
-                        rules += '\n----[+]-iptables -I INPUT -i %s -s %s -d %s -p tcp --dport %s -j REJECT' % (inf, ip, src, port,) + '   Failed!'
+                        rules += '\n        ----[-]-iptables -I INPUT -i %s -s %s -d %s -p tcp --dport %s -j REJECT' % (inf, ip, src, port,) + '   Failed!'
                     else:
                         print bcolors.OKGREEN + 'Done!' + bcolors.ENDC
-                        print '   [+]' + inf + ' ' + src + ':' + str(port) + ' Restricted to' + ip
-                        rules += '\n----[+]-iptables -I INPUT -i %s -s %s -d %s -p tcp --dport %s -j REJECT' % (inf, ip, src, port,) + '   Done!'
+                        print '   [+]' + inf + ' ' + src + ':' + str(port) + ' Restricted to ' + ip
+                        rules += '\n        ----[-]-iptables -I INPUT -i %s -s %s -d %s -p tcp --dport %s -j REJECT' % (inf, ip, src, port,) + '   Done!'
     for rule in socket_container:
         inf = rule['interface']
         src = rule['source']
@@ -541,11 +540,11 @@ def apply_firewall_rules():
                     if int(subprocess.check_output('iptables -A INPUT -i %s -d %s -p tcp --dport %s -j ACCEPT 1>%s 2>>%s; echo $?' % (inf, src, port, temp_file, temp_file), shell=True)) != 0:
                         print bcolors.FAIL + 'Failed!' + bcolors.ENDC
                         print bcolors.FAIL + get_log() + bcolors.ENDC
-                        rules += '\n    [+]iptables -A INPUT -i %s -d %s -p tcp --dport %s -j ACCEPT' % (inf, src, port) + '   Failed!'
+                        rules += '\n        ----[+]iptables -A INPUT -i %s -d %s -p tcp --dport %s -j ACCEPT' % (inf, src, port) + '   Failed!'
                     else:
                         print bcolors.OKGREEN + 'Done!' + bcolors.ENDC
                         print '   [+]' + inf + ' ' + src + ':' + str(port) + ' Allowed from All'
-                        rules += '\n    [+]iptables -A INPUT -i %s -d %s -p tcp --dport %s -j ACCEPT' % (inf, src, port) + '   Done!'
+                        rules += '\n        ----[+]iptables -A INPUT -i %s -d %s -p tcp --dport %s -j ACCEPT' % (inf, src, port) + '   Done!'
         if rule['deny']:
             for ip in rule['deny']:
                 if ip == 'ALL':
@@ -553,19 +552,20 @@ def apply_firewall_rules():
                     if int(subprocess.check_output('iptables -A INPUT -i %s -d %s -p tcp --dport %s -j REJECT 1>%s 2>>%s; echo $?' % (inf, src, port, temp_file, temp_file), shell=True)) != 0:
                         print bcolors.FAIL + 'Failed!' + bcolors.ENDC
                         print bcolors.FAIL + get_log() + bcolors.ENDC
-                        rules += '\n    [+]iptables -A INPUT -i %s -d %s -p tcp --dport %s -j REJECT' % (inf, src, port) + '   Failed!'
+                        rules += '\n        ----[-]iptables -A INPUT -i %s -d %s -p tcp --dport %s -j REJECT' % (inf, src, port) + '   Failed!'
                     else:
                         print bcolors.OKGREEN + 'Done!' + bcolors.ENDC
-                        print '   [+]' + inf + ' ' + src + ':' + str(port) + ' Restricted toAll'
-                        rules += '\n    [+]iptables -A INPUT -i %s -d %s -p tcp --dport %s -j REJECT' % (inf, src, port) + '   Done!'
+                        print '   [+]' + inf + ' ' + src + ':' + str(port) + ' Restricted to All'
+                        rules += '\n        ----[-]iptables -A INPUT -i %s -d %s -p tcp --dport %s -j REJECT' % (inf, src, port) + '   Done!'
     return rules
 
 # --------------------------------------------------
 if __name__ == '__main__':
+    print bcolors.UNDERLINE + bcolors.HEADER + bcolors.BOLD + "Welcome to Synapse DO Automated installation" + bcolors.ENDC
     data = get_initials()
     confirmation = ''
     while confirmation != 'yes':
-        confirmation = raw_input("Above information is correct (yes/no): ")
+        confirmation = raw_input(bcolors.HEADER + bcolors.BOLD + "Above information is correct (yes/no): " + bcolors.ENDC)
         if confirmation == 'no':
             data = get_initials()
     init()
@@ -588,7 +588,7 @@ if __name__ == '__main__':
             Mysql Root Password: %s
             Mysql Database name: %s
             Mysql User name: %s
-            Mysql User Password: %s""" % (mysql_info[0], mysql_info[1], mysql_info[2], mysql_info[3])
+            Mysql User Password: %s \n""" % (mysql_info[0], mysql_info[1], mysql_info[2], mysql_info[3])
         except:
             mysql_details = ''
     else:
@@ -600,15 +600,16 @@ if __name__ == '__main__':
         try:
             ssh_details = """
         SSH Details:
+
             Admin User: sysadmin
             Password: None
             Ssh-Key: """
             if ssh_key != 'None':
-                ssh_details += '<please find attachment>'
+                ssh_details += '<please find attachment> \n'
             else:
-                ssh_details += 'Unable to Create Due to Error'
+                ssh_details += 'Unable to Create Due to Error \n'
         except:
-            ssh_details = ''
+            ssh_details = '\n'
     else:
         ssh_details = ''
         ssh_key = 'None'
@@ -625,7 +626,8 @@ if __name__ == '__main__':
         print bcolors.OKGREEN + 'Started!' + bcolors.ENDC
         rules = apply_firewall_rules()
         firewall_details = """
-        Firewall Details:%s""" % rules
+        Firewall Details:%s
+        """ % rules
     else:
         firewall_details = ""
 
