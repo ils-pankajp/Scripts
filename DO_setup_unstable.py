@@ -26,12 +26,20 @@ class bcolors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
+mail_from = 'developerthesynapses@gmail.com'
+mail_pass = '123qwe,./'
+mail_to = 'p.patel@thesynapses.com'
 mp_len = 15
 t_chars = string.ascii_letters + string.digits + '!@#$^&*:./?=+-_[]{}()<>'
 rnd = random.SystemRandom()
 temp_file = '/tmp/automation_script.log'
-mysql_config = ['/etc/mysql/mysql.conf.d/mysqld.cnf', '/etc/mysql/my.cnf']
 hostname = socket.gethostname()
+default_firewall_allowed_list = {
+    '22': ['159.203.178.175', '103.9.13.146'],
+    '3306': ['54.0.0.0/8', '52.0.0.0/8', '104.131.177.5', '104.131.177.229', '103.9.13.146'],
+    '80': ['ALL'],
+    '443': ['ALL'],
+}
 
 
 def get_initials():
@@ -61,11 +69,11 @@ def get_log():
     return logs
 
 
-def send_mail(text='', file=None):
+def send_mail(text='', keys=None):
 
-    to = 'p.patel@thesynapses.com'
-    user = 'developerthesynapses@gmail.com'
-    password = '123qwe,./'
+    to = mail_to
+    user = mail_from
+    password = mail_pass
     server = "smtp.gmail.com"
     port = 587
 
@@ -74,14 +82,15 @@ def send_mail(text='', file=None):
     msg['To'] = to
     msg['Date'] = formatdate(localtime=True)
     msg['Subject'] = 'DO Setup: %s' % hostname
-    try:
-        msg.attach(MIMEText(text))
-        with open(file, "rb") as fil:
-            part = MIMEApplication(fil.read(), Name=basename(file))
-            part['Content-Disposition'] = 'attachment; filename="%s.pem"' % basename(file)
-            msg.attach(part)
-    except:
-        pass
+    for file in keys:
+        try:
+            msg.attach(MIMEText(text))
+            with open(file, "rb") as fil:
+                part = MIMEApplication(fil.read(), Name=basename(file))
+                part['Content-Disposition'] = 'attachment; filename="%s.pem"' % basename(file)
+                msg.attach(part)
+        except:
+            pass
 
     smtp = smtplib.SMTP(server, port)
     try:
@@ -96,9 +105,9 @@ def send_mail(text='', file=None):
         print bcolors.FAIL + "Failed!" + bcolors.ENDC
 
 
-def init():
+def init(data):
     print bcolors.UNDERLINE + bcolors.HEADER + bcolors.BOLD + "\nStarting DO Automated installation ... \n" + bcolors.ENDC
-    sys.stdout.write(bcolors.OKBLUE + '1. Creating temp file ... ' + bcolors.ENDC)
+    sys.stdout.write(bcolors.OKBLUE + 'Creating temp file ... ' + bcolors.ENDC)
     try:
         basedir = os.path.dirname(temp_file)
         if not os.path.exists(basedir):
@@ -108,53 +117,58 @@ def init():
         print bcolors.OKGREEN +'Done!' + bcolors.ENDC
     except:
         print bcolors.FAIL + ("Failed!") + bcolors.ENDC
-    sys.stdout.write(bcolors.OKBLUE + '2. Adding Universe Repository ... ' + bcolors.ENDC)
+    sys.stdout.write(bcolors.OKBLUE + 'Adding Universe Repository ... ' + bcolors.ENDC)
     if int(subprocess.check_output('apt-add-repository universe 1>%s 2>>%s; echo $?' % (temp_file, temp_file), shell=True)) != 0:
         print bcolors.FAIL + ("Failed!") + bcolors.ENDC
         print bcolors.FAIL + get_log() + bcolors.ENDC
     else:
         print bcolors.OKGREEN +'Done!' + bcolors.ENDC
-    sys.stdout.write(bcolors.OKBLUE + '3. Updating Repository ... ' + bcolors.ENDC)
+    sys.stdout.write(bcolors.OKBLUE + 'Updating Repository ... ' + bcolors.ENDC)
     if int(subprocess.check_output('apt-get -y update 1>%s 2>>%s; echo $?' % (temp_file, temp_file), shell=True)) != 0:
         print bcolors.FAIL + ("Failed!") + bcolors.ENDC
         print bcolors.FAIL + get_log() + bcolors.ENDC
     else:
         print bcolors.OKGREEN +'Done!' + bcolors.ENDC
-    sys.stdout.write(bcolors.OKBLUE + '4. Installing Software-Property-Common Package ... ' + bcolors.ENDC)
-    if int(subprocess.check_output('apt-get -y install software-properties-common 1>%s 2>>%s; echo $?' % (temp_file, temp_file), shell=True)) != 0:
-        print bcolors.FAIL + ("Failed!") + bcolors.ENDC
-        print bcolors.FAIL + get_log() + bcolors.ENDC
-    else:
-        print bcolors.OKGREEN +'Done!' + bcolors.ENDC
-    sys.stdout.write(bcolors.OKBLUE + '5. Installing Debconf Utility Package ... ' + bcolors.ENDC)
-    if int(subprocess.check_output('apt-get -y install debconf-utils 1>%s 2>>%s; echo $?' % (temp_file, temp_file), shell=True)) != 0:
-        print bcolors.FAIL + ("Failed!") + bcolors.ENDC
-        print bcolors.FAIL + get_log() + bcolors.ENDC
-    else:
-        print bcolors.OKGREEN +'Done!' + bcolors.ENDC
-    sys.stdout.write(bcolors.OKBLUE + '6. Installing Python Package Installer ... ' + bcolors.ENDC)
+
+    sys.stdout.write(bcolors.OKBLUE + 'Installing Python Package Installer ... ' + bcolors.ENDC)
     if int(subprocess.check_output('apt-get -y install python-pip 1>%s 2>>%s; echo $?' % (temp_file, temp_file), shell=True)) != 0:
         print bcolors.FAIL + ("Failed") + bcolors.ENDC
         print bcolors.FAIL + get_log() + bcolors.ENDC
     else:
         print bcolors.OKGREEN +'Done!' + bcolors.ENDC
-    sys.stdout.write(bcolors.OKBLUE + '7. Installing Mysql Lib of Python ... ' + bcolors.ENDC)
-    if int(subprocess.check_output('apt-get -y install python-mysqldb 1>%s 2>>%s; echo $?' % (temp_file, temp_file), shell=True)) != 0:
-        print bcolors.FAIL + ("Failed!") + bcolors.ENDC
-        print bcolors.FAIL + get_log() + bcolors.ENDC
-    else:
-        print bcolors.OKGREEN +'Done!' + bcolors.ENDC
-    sys.stdout.write(bcolors.OKBLUE + '8. Installing Python Package for Firewall ... ' + bcolors.ENDC)
-    if int(subprocess.check_output('pip install -U IPy 1>%s 2>>%s; echo $?' % (temp_file, temp_file), shell=True)) != 0:
-        print bcolors.FAIL + ("Failed") + bcolors.ENDC
-        print bcolors.FAIL + get_log() + bcolors.ENDC
-    else:
-        print bcolors.OKGREEN +'Done!' + bcolors.ENDC
+
+    if data[2] == 'yes':
+        sys.stdout.write(bcolors.OKBLUE + 'Installing Software-Property-Common Package ... ' + bcolors.ENDC)
+        if int(subprocess.check_output('apt-get -y install software-properties-common 1>%s 2>>%s; echo $?' % (temp_file, temp_file), shell=True)) != 0:
+            print bcolors.FAIL + ("Failed!") + bcolors.ENDC
+            print bcolors.FAIL + get_log() + bcolors.ENDC
+        else:
+            print bcolors.OKGREEN +'Done!' + bcolors.ENDC
+        sys.stdout.write(bcolors.OKBLUE + 'Installing Debconf Utility Package ... ' + bcolors.ENDC)
+        if int(subprocess.check_output('apt-get -y install debconf-utils 1>%s 2>>%s; echo $?' % (temp_file, temp_file), shell=True)) != 0:
+            print bcolors.FAIL + ("Failed!") + bcolors.ENDC
+            print bcolors.FAIL + get_log() + bcolors.ENDC
+        else:
+            print bcolors.OKGREEN +'Done!' + bcolors.ENDC
+        sys.stdout.write(bcolors.OKBLUE + 'Installing Mysql Lib of Python ... ' + bcolors.ENDC)
+        if int(subprocess.check_output('apt-get -y install python-mysqldb 1>%s 2>>%s; echo $?' % (temp_file, temp_file), shell=True)) != 0:
+            print bcolors.FAIL + ("Failed!") + bcolors.ENDC
+            print bcolors.FAIL + get_log() + bcolors.ENDC
+        else:
+            print bcolors.OKGREEN +'Done!' + bcolors.ENDC
+
+    if data[4] == 'yes':
+        sys.stdout.write(bcolors.OKBLUE + 'Installing Python Package for Firewall ... ' + bcolors.ENDC)
+        if int(subprocess.check_output('pip install -U IPy 1>%s 2>>%s; echo $?' % (temp_file, temp_file), shell=True)) != 0:
+            print bcolors.FAIL + ("Failed") + bcolors.ENDC
+            print bcolors.FAIL + get_log() + bcolors.ENDC
+        else:
+            print bcolors.OKGREEN +'Done!' + bcolors.ENDC
 
 
 def setup(new_user, new_database):
     mysql_root_pass = ''.join(rnd.choice(t_chars) for i in range(mp_len))
-    sys.stdout.write(bcolors.OKBLUE + '9. Installing Mysql ... ' + bcolors.ENDC)
+    sys.stdout.write(bcolors.OKBLUE + 'Installing Mysql ... ' + bcolors.ENDC)
     if int(subprocess.check_output("echo 'mysql-server mysql-server/root_password password %s' | debconf-set-selections 1>%s 2>>%s; echo $?" % (mysql_root_pass, temp_file, temp_file), shell=True)) != 0:
         print bcolors.FAIL + 'Error in settings prerequisites'
         print get_log() + bcolors.ENDC
@@ -166,33 +180,40 @@ def setup(new_user, new_database):
         print bcolors.FAIL + get_log() + bcolors.ENDC
     else:
         print bcolors.OKGREEN + 'Done!' + bcolors.ENDC
-    print ('10. Setting up Mysql Config... ')
-    for mconfig_file in mysql_config:
+    sys.stdout.write('Backing up Mysql Config... ')
+    try:
+        filedata = None
+        with open('/etc/mysql/my.cnf', 'r') as file:
+            filedata = file.read()
+
+        # Write the file out again
+        with open('/etc/mysql/my.cnf_orig', 'w') as file:
+            file.write(filedata)
+        print bcolors.OKGREEN + 'Done!' + bcolors.ENDC
+
+        sys.stdout.write('Setting up Mysql Config... ')
         try:
-            sys.stdout.write(bcolors.OKBLUE + '10(%s). Assuming Mysql Config Path %s ... ' % (str(mysql_config.index(mconfig_file) + 1), mconfig_file) + bcolors.ENDC)
             connection = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             connection.connect(("8.8.8.8", 80))
             address = (connection.getsockname()[0])
             connection.close()
-            config = None
-            with open(mconfig_file, 'r') as file:
-                config = file.read()
-            config = config.replace('127.0.0.1', address)
-            with open(mconfig_file, 'w') as file:
-                file.write(config)
-            print bcolors.OKGREEN + 'Done!' + bcolors.ENDC
-            break
+            if int(subprocess.check_output("""echo '[mysqld]' >> %s;echo 'bind-address = %s' >> %s; echo $?""" % ('/etc/mysql/my.cnf', address, '/etc/mysql/my.cnf'), shell=True)) != 0:
+                print bcolors.FAIL + 'Failed!' + bcolors.ENDC
+            else:
+                print bcolors.OKGREEN + 'Done!' + bcolors.ENDC
         except:
             print bcolors.FAIL + 'Failed!' + bcolors.ENDC
+    except:
+        print bcolors.FAIL + 'Failed!' + bcolors.ENDC
 
-    sys.stdout.write(bcolors.OKBLUE + '11. Restarting Mysql ... ' + bcolors.ENDC)
+    sys.stdout.write(bcolors.OKBLUE + 'Restarting Mysql ... ' + bcolors.ENDC)
     if int(subprocess.check_output('service mysql restart 1>%s 2>>%s; echo $?' % (temp_file, temp_file), shell=True)) != 0:
         print bcolors.FAIL + 'Failed!' + bcolors.ENDC
         print bcolors.FAIL + get_log() + bcolors.ENDC
     else:
         print bcolors.OKGREEN + 'Done!' + bcolors.ENDC
         try:
-            sys.stdout.write(bcolors.OKBLUE + '12. Importing Mysql Python Lib ... ' + bcolors.ENDC)
+            sys.stdout.write(bcolors.OKBLUE + 'Importing Mysql Python Lib ... ' + bcolors.ENDC)
             import MySQLdb
             print bcolors.OKGREEN + 'Done!' + bcolors.ENDC
             try:
@@ -201,7 +222,7 @@ def setup(new_user, new_database):
                 print bcolors.OKGREEN + 'Done!' + bcolors.ENDC
                 newpass = ''.join(rnd.choice(t_chars) for i in range(mp_len))
                 cursor = dbserver.cursor()
-                sys.stdout.write(bcolors.OKBLUE + '14(1). Creating database! ... ' + bcolors.ENDC)
+                sys.stdout.write(bcolors.OKBLUE + '--[1]. Creating database! ... ' + bcolors.ENDC)
                 try:
                     cursor.execute('CREATE DATABASE %s' % new_database)
                     dbserver.commit()
@@ -211,7 +232,7 @@ def setup(new_user, new_database):
                     print bcolors.FAIL + "Failed!"
                     print(str(e)) + bcolors.ENDC
                     new_database = 'None'
-                sys.stdout.write(bcolors.OKBLUE + '14(2). Setting Local Permissions! ... ' + bcolors.ENDC)
+                sys.stdout.write(bcolors.OKBLUE + '--[2]. Setting Local Permissions! ... ' + bcolors.ENDC)
                 try:
                     cursor.execute('GRANT ALL on %s.* to "%s"@"localhost" identified by "%s"' % (new_database, new_user, newpass))
                     dbserver.commit()
@@ -222,7 +243,7 @@ def setup(new_user, new_database):
                     print bcolors.FAIL + "Failed!"
                     print(str(e)) + bcolors.ENDC
                     m_l_u = False
-                sys.stdout.write(bcolors.OKBLUE + '14(3). Setting Remote Permissions! ... ' + bcolors.ENDC)
+                sys.stdout.write(bcolors.OKBLUE + '--[3]. Setting Remote Permissions! ... ' + bcolors.ENDC)
                 try:
                     cursor.execute('GRANT ALL on %s.* to "%s"@"' % (new_database, new_user) + '%"' + ' identified by "%s"' % newpass)
                     dbserver.commit()
@@ -245,40 +266,59 @@ def setup(new_user, new_database):
             except MySQLdb.Error, e:
                 print bcolors.FAIL + 'Failed!' + bcolors.ENDC
                 print (bcolors.FAIL + 'ERROR: ' + str(e) + bcolors.ENDC)
-                sys.stdout.write(bcolors.OKBLUE + '14. Setting Mysql Database and user! ... ' + bcolors.ENDC)
+                sys.stdout.write(bcolors.OKBLUE + 'Setting Mysql Database and user! ... ' + bcolors.ENDC)
                 print bcolors.WARNING + 'Skipped' + bcolors.ENDC
         except:
             print bcolors.FAIL + "Failed!" + bcolors.ENDC
 
 
 def add_user():
-    sys.stdout.write(bcolors.OKBLUE + '15. Adding Admin User ... ' + bcolors.ENDC)
+    sys.stdout.write(bcolors.OKBLUE + 'Adding Admin User ... ' + bcolors.ENDC)
     if int(subprocess.check_output("useradd -m -s /bin/bash sysadmin 1>%s 2>>%s; echo $?" % (temp_file, temp_file), shell=True)) != 0:
         print bcolors.FAIL + 'Failed!'
         print get_log() + bcolors.ENDC
     else:
         print bcolors.OKGREEN + 'Done!' + bcolors.ENDC
-    sys.stdout.write(bcolors.OKBLUE + '16. Creating SSH-Key ... ' + bcolors.ENDC)
+    sys.stdout.write(bcolors.OKBLUE + 'Creating SSH-Key ... ' + bcolors.ENDC)
     if int(subprocess.check_output("""su -c 'echo "y" | ssh-keygen -t rsa -N "" -f ~/.ssh/%s-sysadmin' sysadmin 1>%s 2>>%s; echo $?""" % (hostname, temp_file, temp_file), shell=True)) != 0:
         print bcolors.FAIL + 'Failed!'
         print get_log() + bcolors.ENDC
     else:
         print bcolors.OKGREEN + 'Done!' + bcolors.ENDC
-    sys.stdout.write(bcolors.OKBLUE + '17. Updating SSH-Public-Key ... ' + bcolors.ENDC)
+    sys.stdout.write(bcolors.OKBLUE + 'Updating SSH-Public-Key ... ' + bcolors.ENDC)
     if int(subprocess.check_output("su -c 'mv ~/.ssh/%s-sysadmin.pub ~/.ssh/authorized_keys' sysadmin 1>%s 2>>%s; echo $?" % (hostname, temp_file, temp_file), shell=True)) != 0:
         print bcolors.FAIL + 'Failed!'
         print get_log() + bcolors.ENDC
     else:
         print bcolors.OKGREEN + 'Done!' + bcolors.ENDC
-    sys.stdout.write(bcolors.OKBLUE + '18. Granting Admin Privileges... ' + bcolors.ENDC)
+    sys.stdout.write(bcolors.OKBLUE + 'Adding Putty Liberary ... ' + bcolors.ENDC)
+    if int(subprocess.check_output("apt-get install -y putty 1>%s 2>>%s; echo $?", shell=True)) != 0:
+        print bcolors.FAIL + 'Failed!'
+        print get_log() + bcolors.ENDC
+    else:
+        print bcolors.OKGREEN + 'Done!' + bcolors.ENDC
+        sys.stdout.write(bcolors.OKBLUE + 'Converting SSH Private Key ... ' + bcolors.ENDC)
+        if int(subprocess.check_output("su -c 'puttygen ~/.ssh/%s-sysadmin -O private -o ~/.ssh/%s-sysadmin.ppk' sysadmin 1>%s 2>>%s; echo $?" % (hostname, hostname, temp_file, temp_file), shell=True)) != 0:
+            print bcolors.FAIL + 'Failed!'
+            print get_log() + bcolors.ENDC
+        else:
+            print bcolors.OKGREEN + 'Done!' + bcolors.ENDC
+
+    sys.stdout.write(bcolors.OKBLUE + 'Granting Admin Privileges... ' + bcolors.ENDC)
     if int(subprocess.check_output("echo 'sysadmin ALL=(ALL)       NOPASSWD: ALL' >> /etc/sudoers; echo $?", shell=True)) != 0:
         print bcolors.FAIL + 'Failed!' + bcolors.ENDC
     else:
         print bcolors.OKGREEN + 'Done!' + bcolors.ENDC
     ssh_key = subprocess.check_output("su -c 'echo $HOME' sysadmin", shell=True) + '/.ssh/%s-sysadmin' % hostname
     ssh_key = str(ssh_key).replace('\n', '')
+    ssh_key2 = ssh_key + '.ppk'
+    keys = []
     if os.path.exists(ssh_key):
-        return ssh_key
+        keys.append(ssh_key)
+    if os.path.exists(ssh_key2):
+        keys.append(ssh_key2)
+    if keys:
+        return keys
     else:
         return 'None'
 
@@ -319,8 +359,9 @@ def get_sockets():
     for i in ifs:
         interface = i[0]
         src = format_ip(i[1])
-        for port in range(1, 35565):
-            if interface != 'lo':
+        src_type = IP(src).iptype()
+        if src_type == 'PUBLIC':
+            for port in range(1, 35565):
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 result = sock.connect_ex((src, int(port)))
                 if result == 0:
@@ -329,6 +370,7 @@ def get_sockets():
                 sock.close()
     print bcolors.OKGREEN + 'Done!' + bcolors.ENDC
     socket_container = add_ssh_connection(socket_container)
+    socket_container = add_default_rules(socket_container)
     return socket_container
 
 
@@ -349,6 +391,21 @@ def add_ssh_connection(socket_container):
             sock['allow'].append(ssh_connection['ssh_client_ip'])
             print socket
     print bcolors.OKGREEN + 'Done!' + bcolors.ENDC
+    return new_socket_container
+
+
+def add_default_rules(socket_container):
+    new_socket_container = socket_container
+    for port in default_firewall_allowed_list:
+        for sock in new_socket_container:
+            if sock['port'] == int(port):
+                for ip in default_firewall_allowed_list[port]:
+                    if ip not in sock['allow']:
+                        sock['allow'].append(ip)
+    for sock in new_socket_container:
+        if sock['port'] == 80 or sock['port'] == 443:
+            sock['deny'].remove('ALL')
+
     return new_socket_container
 
 
@@ -568,7 +625,7 @@ if __name__ == '__main__':
         confirmation = raw_input(bcolors.HEADER + bcolors.BOLD + "Above information is correct (yes/no): " + bcolors.ENDC)
         if confirmation == 'no':
             data = get_initials()
-    init()
+    init(data)
 
     # Mysql Setup
     if data[2] == 'yes':
@@ -616,17 +673,18 @@ if __name__ == '__main__':
 
     # Firewall Setup
     if data[4] == 'yes':
-        sys.stdout.write(bcolors.OKBLUE + '19. Importing IP Python Lib ... ' + bcolors.ENDC)
+        sys.stdout.write(bcolors.OKBLUE + 'Importing IP Python Lib ... ' + bcolors.ENDC)
         try:
             from IPy import IP
             print bcolors.OKGREEN + 'Done!' + bcolors.ENDC
         except:
             print bcolors.FAIL + 'Failed!' + bcolors.ENDC
-        sys.stdout.write(bcolors.OKBLUE + '20. Setting Firewall! ... ' + bcolors.ENDC)
+        sys.stdout.write(bcolors.OKBLUE + 'Setting Firewall! ... ' + bcolors.ENDC)
         print bcolors.OKGREEN + 'Started!' + bcolors.ENDC
         rules = apply_firewall_rules()
         firewall_details = """
-        Firewall Details:%s
+        Firewall Details:
+        %s
         """ % rules
     else:
         firewall_details = ""
@@ -638,8 +696,8 @@ if __name__ == '__main__':
 
     mail_message = mail_head + mysql_details + ssh_details + firewall_details
 
-    sys.stdout.write('21. Sending Mail ... ')
+    sys.stdout.write('Sending Mail ... ')
     if ssh_key != 'None':
-        send_mail(text=str(mail_message), file=ssh_key)
+        send_mail(text=str(mail_message), keys=ssh_key)
     else:
         send_mail(text=str(mail_message))
