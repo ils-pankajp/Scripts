@@ -129,14 +129,14 @@ def send_mail(text='', keys=None):
     msg['Date'] = formatdate(localtime=True)
     msg['Subject'] = 'DO Setup: %s' % hostname
     msg.attach(MIMEText(text))
-    for file in keys:
-        try:
+    try:
+        for file in keys:
             with open(file, "rb") as fil:
                 part = MIMEApplication(fil.read(), Name=basename(file))
                 part['Content-Disposition'] = 'attachment; filename="%s.pem"' % basename(file)
                 msg.attach(part)
-        except:
-            pass
+    except:
+        pass
 
     smtp = smtplib.SMTP(server, port)
     try:
@@ -290,7 +290,7 @@ def setup(new_user, new_database):
                 load.stop(0)
                 newpass = ''.join(rnd.choice(t_chars) for i in range(mp_len))
                 cursor = dbserver.cursor()
-                load = Loader(msg=bcolors.OKBLUE + '--[1]. Creating database!' + bcolors.ENDC)
+                load = Loader(msg=bcolors.OKBLUE + '   [+] Creating database!' + bcolors.ENDC)
                 load.start()
                 try:
                     cursor.execute('CREATE DATABASE %s' % new_database)
@@ -301,7 +301,7 @@ def setup(new_user, new_database):
                     load.stop(1)
                     print(str(e)) + bcolors.ENDC
                     new_database = 'None'
-                load = Loader(msg=bcolors.OKBLUE + '--[2]. Setting Local Permissions!' + bcolors.ENDC)
+                load = Loader(msg=bcolors.OKBLUE + '   [+] Setting Local Permissions!' + bcolors.ENDC)
                 load.start()
                 try:
                     cursor.execute('GRANT ALL on %s.* to "%s"@"localhost" identified by "%s"' % (new_database, new_user, newpass))
@@ -313,7 +313,7 @@ def setup(new_user, new_database):
                     load.stop(1)
                     print(str(e)) + bcolors.ENDC
                     m_l_u = False
-                load = Loader(msg=bcolors.OKBLUE + '--[3]. Setting Remote Permissions!' + bcolors.ENDC)
+                load = Loader(msg=bcolors.OKBLUE + '   [+] Setting Remote Permissions!' + bcolors.ENDC)
                 load.start()
                 try:
                     cursor.execute('GRANT ALL on %s.* to "%s"@"' % (new_database, new_user) + '%"' + ' identified by "%s"' % newpass)
@@ -370,7 +370,7 @@ def add_user():
 
     load = Loader(msg=bcolors.OKBLUE + 'Adding Putty Liberary' + bcolors.ENDC)
     load.start()
-    if int(subprocess.check_output("apt-get install -y putty 1>%s 2>>%s; echo $?", shell=True)) != 0:
+    if int(subprocess.check_output("apt-get install -y putty 1>%s 2>>%s; echo $?" % (temp_file, temp_file), shell=True)) != 0:
         load.stop(1)
         print bcolors.FAIL + get_log() + bcolors.ENDC
     else:
@@ -434,7 +434,6 @@ def format_ip(addr):
 
 
 def get_sockets():
-    print ''
     ifs = all_interfaces()
     socket_container = []
     load = Loader(msg=bcolors.OKBLUE + '   [+] Getting Sockets list' + bcolors.ENDC)
@@ -686,11 +685,11 @@ def apply_firewall_rules():
                     if int(subprocess.check_output('iptables -A INPUT -i %s -d %s -p tcp --dport %s -j ACCEPT 1>%s 2>>%s; echo $?' % (inf, src, port, temp_file, temp_file), shell=True)) != 0:
                         load.stop(1)
                         print bcolors.FAIL + get_log() + bcolors.ENDC
-                        rules += '\n        ----[+]iptables -A INPUT -i %s -d %s -p tcp --dport %s -j ACCEPT' % (inf, src, port) + '   Failed!'
+                        rules += '\n        ----[+]-iptables -A INPUT -i %s -d %s -p tcp --dport %s -j ACCEPT' % (inf, src, port) + '   Failed!'
                     else:
                         load.stop(0)
                         print '   [+]' + inf + ' ' + src + ':' + str(port) + ' Allowed from All'
-                        rules += '\n        ----[+]iptables -A INPUT -i %s -d %s -p tcp --dport %s -j ACCEPT' % (inf, src, port) + '   Done!'
+                        rules += '\n        ----[+]-iptables -A INPUT -i %s -d %s -p tcp --dport %s -j ACCEPT' % (inf, src, port) + '   Done!'
         if rule['deny']:
             for ip in rule['deny']:
                 if ip == 'ALL':
@@ -699,11 +698,11 @@ def apply_firewall_rules():
                     if int(subprocess.check_output('iptables -A INPUT -i %s -d %s -p tcp --dport %s -j REJECT 1>%s 2>>%s; echo $?' % (inf, src, port, temp_file, temp_file), shell=True)) != 0:
                         load.stop(1)
                         print bcolors.FAIL + get_log() + bcolors.ENDC
-                        rules += '\n        ----[-]iptables -A INPUT -i %s -d %s -p tcp --dport %s -j REJECT' % (inf, src, port) + '   Failed!'
+                        rules += '\n        ----[-]-iptables -A INPUT -i %s -d %s -p tcp --dport %s -j REJECT' % (inf, src, port) + '   Failed!'
                     else:
                         load.stop(0)
                         print '   [+]' + inf + ' ' + src + ':' + str(port) + ' Restricted to All'
-                        rules += '\n        ----[-]iptables -A INPUT -i %s -d %s -p tcp --dport %s -j REJECT' % (inf, src, port) + '   Done!'
+                        rules += '\n        ----[-]-iptables -A INPUT -i %s -d %s -p tcp --dport %s -j REJECT' % (inf, src, port) + '   Done!'
     return rules
 
 # --------------------------------------------------
@@ -722,10 +721,10 @@ if __name__ == '__main__':
         mysql_info = setup(data[0], data[1])
         if mysql_info:
             try:
-                print bcolors.OKBLUE + 'Mysql Root Password: ' + bcolors.BOLD + mysql_info[0] + bcolors.ENDC
-                print bcolors.OKBLUE + 'Mysql Database name: ' + bcolors.BOLD + mysql_info[1] + bcolors.ENDC
-                print bcolors.OKBLUE + 'Mysql User name: ' + bcolors.BOLD + mysql_info[2] + bcolors.ENDC
-                print bcolors.OKBLUE + 'Mysql User Password: ' + bcolors.BOLD + mysql_info[3] + bcolors.ENDC
+                print bcolors.BOLD + 'Mysql Root Password: ' + bcolors.BOLD + mysql_info[0] + bcolors.ENDC
+                print bcolors.BOLD + 'Mysql Database name: ' + bcolors.BOLD + mysql_info[1] + bcolors.ENDC
+                print bcolors.BOLD + 'Mysql User name: ' + bcolors.BOLD + mysql_info[2] + bcolors.ENDC
+                print bcolors.BOLD + 'Mysql User Password: ' + bcolors.BOLD + mysql_info[3] + bcolors.ENDC
             except:
                 pass
         try:
@@ -790,9 +789,22 @@ if __name__ == '__main__':
 
     mail_message = mail_head + mysql_details + ssh_details + firewall_details
 
-    mail_load = Loader(msg=bcolors.OKBLUE + 'Sending Mail' + bcolors.ENDC)
+    mail_load = Loader(msg=bcolors.OKBLUE + 'Sending Information over Mail' + bcolors.ENDC)
     mail_load.start()
     if ssh_key != 'None':
         send_mail(text=str(mail_message), keys=ssh_key)
     else:
         send_mail(text=str(mail_message))
+
+    load = Loader(msg=bcolors.OKBLUE + 'Exiting Script' + bcolors.ENDC)
+    load.start()
+    try:
+        os.remove(temp_file)
+    except:
+        print(bcolors.FAIL + 'Unable to remove Temp File' + bcolors.ENDC)
+    try:
+        os.remove(sys.argv[0])
+    except:
+        print(bcolors.FAIL + 'Unable to Clean script' + bcolors.ENDC)
+    load.stop(0)
+
