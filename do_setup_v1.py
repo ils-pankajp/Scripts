@@ -74,7 +74,7 @@ class Loader(threading.Thread):
 
 mail_from = 'techsupport@thesynapses.com'
 mail_pass = 'ils_2020'
-mail_to = 'p.patel@thesynapses.com'
+mail_to = 'techsupport@thesynapses.com'
 mp_len = 15
 t_chars = string.ascii_letters + string.digits + '!@#$^&*:./?=+-_[]{}()<>'
 rnd = random.SystemRandom()
