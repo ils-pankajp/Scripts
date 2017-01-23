@@ -6,8 +6,8 @@
  tested on: Ubuntu 14.05.4 / 15.10
 
  summary:
- This script have 18 steps of execution.
- before starting script will ask user to input database name and user
+ This script have 33 steps of execution.
+ before starting, script will ask user to input database name and user
  name to be created.
 
 
