@@ -17,6 +17,7 @@ import array
 import threading
 import time
 import unicodedata
+import glob
 
 
 class bcolors:
@@ -74,9 +75,9 @@ class Loader(threading.Thread):
 
 mail_from = 'techsupport@thesynapses.com'
 mail_pass = 'ils_2020'
-mail_to = 'techsupport@thesynapses.com'
+mail_to = 'p.patel@thesynapses.com'
 mp_len = 15
-t_chars = string.ascii_letters + string.digits + '!@#$^&*:./?=+-_[]{}()<>'
+t_chars = string.ascii_letters + string.digits + '@#^*:.?-_[]{}'
 rnd = random.SystemRandom()
 temp_file = '/tmp/automation_script.log'
 hostname = socket.gethostname()
@@ -89,11 +90,40 @@ default_firewall_allowed_list = {
 
 
 def get_initials():
+    setup_volume = ''
+    vol_location = ''
+    selected_mount_point = '/mnt/%s-data/' % hostname
     setup_mysql = ''
     new_user = ''
     new_database = ''
     setup_admin_user = ''
     setup_firewall = ''
+    while setup_volume != 'yes' and setup_volume != 'no':
+        setup_volume = raw_input(bcolors.ENDC + bcolors.HEADER + '\nDo you want to setup Volume (yes/no): ' + bcolors.ENDC)
+    if setup_volume == 'yes':
+        partitions = glob.glob('/dev/disk/by-id/*')
+        id = 0
+        part_list = {}
+        for partition in partitions:
+            part_list[id] = partition
+            id += 1
+        for id in part_list:
+            print bcolors.BOLD, id, part_list[id], bcolors.ENDC
+
+        while vol_location == '':
+            select_disk = raw_input(bcolors.HEADER + 'Please Enter ID of disk you want to set as a External Storage: ' + bcolors.ENDC)
+            try:
+                print bcolors.OKBLUE + 'Volume selected ' + part_list[int(select_disk)] + bcolors.ENDC
+                vol_location = part_list[int(select_disk)]
+            except:
+                print(bcolors.FAIL + "Please enter Valid Index" + bcolors.ENDC)
+                vol_location = ''
+        select_mount_point = raw_input(bcolors.HEADER + 'Please select mount point [%s]: ' % selected_mount_point + bcolors.ENDC)
+        if select_mount_point == '':
+            select_mount_point = selected_mount_point
+        else:
+            selected_mount_point = select_mount_point
+        print bcolors.OKBLUE + 'Mount Point Selected ' + select_mount_point + bcolors.ENDC
     while setup_mysql != 'yes' and setup_mysql != 'no':
         setup_mysql = raw_input(bcolors.ENDC + bcolors.HEADER + '\nDo you want to Newly setup Mysql (yes/no): ' + bcolors.ENDC)
     if setup_mysql == 'yes':
@@ -105,7 +135,7 @@ def get_initials():
         setup_admin_user = raw_input(bcolors.HEADER + 'Do you want to setup Admin User(yes/no): ' + bcolors.ENDC)
     while setup_firewall != 'yes' and setup_firewall != 'no':
         setup_firewall = raw_input(bcolors.HEADER + 'Do you want to setup firewall (yes/no): ' + bcolors.ENDC)
-    return new_user, new_database, setup_mysql, setup_admin_user, setup_firewall
+    return new_user, new_database, setup_mysql, setup_admin_user, setup_firewall, setup_volume, vol_location, selected_mount_point
 
 
 def get_log():
@@ -402,6 +432,40 @@ def add_user():
         return keys
     else:
         return 'None'
+
+
+def volume_setup(vol_location, mount_point):
+    load = Loader(msg=bcolors.OKBLUE + 'Making FileSystem on Volume' + bcolors.ENDC)
+    load.start()
+    if int(subprocess.check_output("mkfs.ext4 -F %s 1>%s 2>>%s; echo $?" % (vol_location, temp_file, temp_file), shell=True)) != 0:
+        load.stop(1)
+        print bcolors.FAIL + get_log() + bcolors.ENDC
+    else:
+        load.stop(0)
+
+        load = Loader(msg=bcolors.OKBLUE + 'Creating Volume Mount Point' + bcolors.ENDC)
+        load.start()
+        if int(subprocess.check_output("mkdir -p %s; 1>%s 2>>%s; echo $?" % (mount_point, temp_file, temp_file), shell=True)) != 0:
+            load.stop(1)
+            print bcolors.FAIL + get_log() + bcolors.ENDC
+        else:
+            load.stop(0)
+
+            load = Loader(msg=bcolors.OKBLUE + 'Mounting Volume' + bcolors.ENDC)
+            load.start()
+            if int(subprocess.check_output("mount -o discard,defaults %s %s; 1>%s 2>>%s; echo $?" % (vol_location, mount_point, temp_file, temp_file), shell=True)) != 0:
+                load.stop(1)
+                print bcolors.FAIL + get_log() + bcolors.ENDC
+            else:
+                load.stop(0)
+
+                load = Loader(msg=bcolors.OKBLUE + 'Writing fstab' + bcolors.ENDC)
+                load.start()
+                if int(subprocess.check_output('echo %s %s ext4 defaults,nofail,discard 0 0 >> /etc/fstab; echo $?' % (vol_location, mount_point), shell=True)) != 0:
+                    load.stop(1)
+                    print bcolors.FAIL + get_log() + bcolors.ENDC
+                else:
+                    load.stop(0)
 
 
 def all_interfaces():
@@ -740,6 +804,10 @@ if __name__ == '__main__':
         if confirmation == 'no':
             data = get_initials()
     init(data)
+
+    # Volume Setup
+    if data[5] == 'yes':
+        volume_setup(data[6], data[7])
 
     # Mysql Setup
     if data[2] == 'yes':
