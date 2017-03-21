@@ -81,6 +81,7 @@ t_chars = string.ascii_letters + string.digits + '@#^*:.?-_[]{}'
 rnd = random.SystemRandom()
 temp_file = '/tmp/automation_script.log'
 hostname = socket.gethostname()
+alt_pass = ''.join(rnd.choice(t_chars) for i in range(20))
 default_firewall_allowed_list = {
     '22': ['159.203.178.175', '103.9.13.146'],
     '3306': ['107.0.0.0/8', '34.0.0.0/8', '54.0.0.0/8', '52.0.0.0/8', '104.131.177.5', '104.131.177.229', '103.9.13.146'],
@@ -99,6 +100,8 @@ def get_initials():
     new_database = ''
     setup_admin_user = ''
     setup_firewall = ''
+    setup_nrelic = ''
+    nw_licence = ''
     while setup_volume != 'yes' and setup_volume != 'no':
         setup_volume = raw_input(bcolors.ENDC + bcolors.HEADER + '\nDo you want to setup Volume (yes/no): ' + bcolors.ENDC)
     if setup_volume == 'yes':
@@ -133,10 +136,16 @@ def get_initials():
         while not new_database:
             new_database = raw_input(bcolors.HEADER + '     Please Enter MySQL Database name to be created: ' + bcolors.ENDC)
     while setup_admin_user != 'yes' and setup_admin_user != 'no':
-        setup_admin_user = raw_input(bcolors.HEADER + 'Do you want to setup Admin User(yes/no): ' + bcolors.ENDC)
+        setup_admin_user = raw_input(bcolors.HEADER + 'Do you want to setup Admin User (yes/no): ' + bcolors.ENDC)
     while setup_firewall != 'yes' and setup_firewall != 'no':
         setup_firewall = raw_input(bcolors.HEADER + 'Do you want to setup firewall (yes/no): ' + bcolors.ENDC)
-    return new_user, new_database, setup_mysql, setup_admin_user, setup_firewall, setup_volume, vol_location, selected_mount_point
+    while setup_nrelic != 'yes' and setup_nrelic != 'no':
+        setup_nrelic = raw_input(bcolors.HEADER + 'Do you want to setup NewRelic (yes/no): ' + bcolors.ENDC)
+    if setup_nrelic == 'yes':
+        while not nw_licence:
+            nw_licence = raw_input(bcolors.HEADER + 'Please Enter Licence Key : ' + bcolors.ENDC)
+
+    return new_user, new_database, setup_mysql, setup_admin_user, setup_firewall, setup_volume, vol_location, selected_mount_point, setup_nrelic, nw_licence
 
 
 def get_log():
@@ -204,6 +213,17 @@ def init(data):
         print bcolors.FAIL + get_log() + bcolors.ENDC
     else:
         load.stop(0)
+
+    if data[8] == 'yes':
+        load = Loader(msg=bcolors.OKBLUE + 'Adding NewRelic Repository' + bcolors.ENDC)
+        load.start()
+        if int(subprocess.check_output("echo 'deb http://apt.newrelic.com/debian/ newrelic non-free' | sudo tee /etc/apt/sources.list.d/newrelic.list 1>%s 2>>%s; echo $?" % (temp_file, temp_file), shell=True)) != 0:
+            load.stop(1)
+        elif int(subprocess.check_output("wget -O- https://download.newrelic.com/548C16BF.gpg | apt-key add - 1>%s 2>>%s; echo $?" % (temp_file, temp_file), shell=True)) != 0:
+            load.stop(1)
+            print bcolors.FAIL + get_log() + bcolors.ENDC
+        else:
+            load.stop(0)
 
     load = Loader(msg=bcolors.OKBLUE + 'Updating Repository' + bcolors.ENDC)
     load.start()
@@ -335,7 +355,8 @@ def setup(new_user, new_database):
                 load = Loader(msg=bcolors.OKBLUE + '   [+] Setting Local Permissions!' + bcolors.ENDC)
                 load.start()
                 try:
-                    cursor.execute('GRANT ALL on %s.* to "%s"@"localhost" identified by "%s"' % (new_database, new_user, newpass))
+                    cursor.execute('CREATE USER "%s"@"' % new_user + '%"' + ' identified by "%s"' % newpass)
+                    cursor.execute('CREATE USER "webops"@"' + '%"' + ' identified by "%s"' % alt_pass)
                     dbserver.commit()
                     load.stop(0)
                     m_l_u = True
@@ -347,7 +368,8 @@ def setup(new_user, new_database):
                 load = Loader(msg=bcolors.OKBLUE + '   [+] Setting Remote Permissions!' + bcolors.ENDC)
                 load.start()
                 try:
-                    cursor.execute('GRANT ALL on %s.* to "%s"@"' % (new_database, new_user) + '%"' + ' identified by "%s"' % newpass)
+                    cursor.execute('GRANT ALL on %s.* to "%s"@"' % (new_database, new_user) + '%"')
+                    cursor.execute('GRANT ALL on *.* to "webops"@"%"')
                     dbserver.commit()
                     load.stop(0)
                     m_r_u = True
@@ -380,6 +402,12 @@ def add_user():
     if int(subprocess.check_output("useradd -m -s /bin/bash sysadmin 1>%s 2>>%s; echo $?" % (temp_file, temp_file), shell=True)) != 0:
         load.stop(1)
         print bcolors.FAIL + get_log() + bcolors.ENDC
+    elif int(subprocess.check_output("useradd -m -s /bin/bash -d /var/www webops 1>%s 2>>%s; echo $?" % (temp_file, temp_file), shell=True)) != 0:
+        load.stop(1)
+        print bcolors.FAIL + get_log() + bcolors.ENDC
+    elif int(subprocess.check_output("usermod -p $(echo %s | openssl passwd -1 -stdin) webops 1>%s 2>>%s; echo $?" % (alt_pass, temp_file, temp_file), shell=True)) != 0:
+        load.stop(1)
+        print bcolors.FAIL + get_log() + bcolors.ENDC
     else:
         load.stop(0)
 
@@ -399,7 +427,7 @@ def add_user():
     else:
         load.stop(0)
 
-    load = Loader(msg=bcolors.OKBLUE + 'Adding Putty Liberary' + bcolors.ENDC)
+    load = Loader(msg=bcolors.OKBLUE + 'Adding Putty Lib' + bcolors.ENDC)
     load.start()
     if int(subprocess.check_output("apt-get install -y putty 1>%s 2>>%s; echo $?" % (temp_file, temp_file), shell=True)) != 0:
         load.stop(1)
@@ -418,6 +446,8 @@ def add_user():
     load = Loader(msg=bcolors.OKBLUE + 'Granting Admin Privileges' + bcolors.ENDC)
     load.start()
     if int(subprocess.check_output("echo 'sysadmin ALL=(ALL)       NOPASSWD: ALL' >> /etc/sudoers; echo $?", shell=True)) != 0:
+        load.stop(1)
+    if int(subprocess.check_output("echo 'webops ALL=(ALL)       NOPASSWD: ALL' >> /etc/sudoers; echo $?", shell=True)) != 0:
         load.stop(1)
     else:
         load.stop(0)
@@ -795,6 +825,37 @@ def save_applied_rules():
     else:
         load.stop(0)
 
+
+def setup_newrelic(licence):
+    load = Loader(msg=bcolors.OKBLUE + 'Installing NewRelic' + bcolors.ENDC)
+    load.start()
+    if int(subprocess.check_output('apt-get -y install newrelic-sysmond 1>%s 2>>%s; echo $?' % (temp_file, temp_file), shell=True)) != 0:
+        load.stop(1)
+        print bcolors.FAIL + get_log() + bcolors.ENDC
+    else:
+        load.stop(0)
+
+    load = Loader(msg=bcolors.OKBLUE + 'Setup NewRelic Licence' + bcolors.ENDC)
+    load.start()
+    if int(subprocess.check_output('nrsysmond-config --set license_key=%s 1>%s 2>>%s; echo $?' % (licence, temp_file, temp_file), shell=True)) != 0:
+        load.stop(1)
+        print bcolors.FAIL + get_log() + bcolors.ENDC
+    else:
+        load.stop(0)
+
+    load = Loader(msg=bcolors.OKBLUE + 'Starting NewRelic Service' + bcolors.ENDC)
+    load.start()
+    if int(subprocess.check_output('/etc/init.d/newrelic-sysmond start 1>%s 2>>%s; echo $?' % (temp_file, temp_file), shell=True)) != 0:
+        load.stop(1)
+        print bcolors.FAIL + get_log() + bcolors.ENDC
+        setup_newrelic_r = 'Failed'
+    else:
+        load.stop(0)
+        setup_newrelic_r = 'Installed and Configured'
+
+    return setup_newrelic_r
+
+
 # --------------------------------------------------
 if __name__ == '__main__':
     print bcolors.UNDERLINE + bcolors.HEADER + bcolors.BOLD + "Welcome to Synapse DO Automated installation" + bcolors.ENDC
@@ -819,6 +880,7 @@ if __name__ == '__main__':
                 print bcolors.BOLD + 'Mysql Database name: ' + bcolors.BOLD + mysql_info[1] + bcolors.ENDC
                 print bcolors.BOLD + 'Mysql User name: ' + bcolors.BOLD + mysql_info[2] + bcolors.ENDC
                 print bcolors.BOLD + 'Mysql User Password: ' + bcolors.BOLD + mysql_info[3] + bcolors.ENDC
+                print bcolors.BOLD + 'Mysql webops Password: ' + bcolors.BOLD + alt_pass + bcolors.ENDC
             except:
                 pass
         try:
@@ -828,7 +890,8 @@ if __name__ == '__main__':
             Mysql Root Password: %s
             Mysql Database name: %s
             Mysql User name: %s
-            Mysql User Password: %s \n""" % (mysql_info[0], mysql_info[1], mysql_info[2], mysql_info[3])
+            Mysql User Password: %s
+            Mysql webops: %s \n""" % (mysql_info[0], mysql_info[1], mysql_info[2], mysql_info[3], alt_pass)
         except:
             mysql_details = ''
     else:
@@ -845,9 +908,12 @@ if __name__ == '__main__':
             Password: None
             Ssh-Key: """
             if ssh_key != 'None':
-                ssh_details += '<please find attachment> \n'
+                ssh_details += '<please find attachment>'
             else:
-                ssh_details += 'Unable to Create Due to Error \n'
+                ssh_details += 'Unable to Create Due to Error'
+            ssh_details += """
+            webops: %s\n""" % alt_pass
+
         except:
             ssh_details = '\n'
     else:
@@ -868,7 +934,7 @@ if __name__ == '__main__':
         rules = apply_firewall_rules()
         if rules:
             firewall_details = """
-            Firewall Details:
+        Firewall Details:
             %s
             """ % rules
         else:
@@ -876,12 +942,23 @@ if __name__ == '__main__':
     else:
         firewall_details = ""
 
+    if data[8] == 'yes':
+        nrstatus = setup_newrelic(data[9],)
+    else:
+        nrstatus = 'Not Installed'
+
+    newrelic_details = """
+        Newrelic Details:
+
+            NewRelic Agent: %s
+            """ % nrstatus
+
     mail_head = """Hello,
         You are getting this mail from DO Automated Installation Script.
     please find the Details below:
     """
 
-    mail_message = mail_head + mysql_details + ssh_details + firewall_details
+    mail_message = mail_head + mysql_details + ssh_details + newrelic_details + firewall_details
 
     mail_load = Loader(msg=bcolors.OKBLUE + 'Sending Information over Mail' + bcolors.ENDC)
     mail_load.start()
