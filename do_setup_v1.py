@@ -102,6 +102,9 @@ def get_initials():
     setup_firewall = ''
     setup_nrelic = ''
     nw_licence = ''
+    mysql_dir_change = ''
+    mysql_dir_path = ''
+    create_mysql_dir_path = ''
     while setup_volume != 'yes' and setup_volume != 'no':
         setup_volume = raw_input(bcolors.ENDC + bcolors.HEADER + '\nDo you want to setup Volume (yes/no): ' + bcolors.ENDC)
     if setup_volume == 'yes':
@@ -135,6 +138,22 @@ def get_initials():
             new_user = raw_input(bcolors.HEADER + '     Please Enter MySQL username to be created: ' + bcolors.ENDC)
         while not new_database:
             new_database = raw_input(bcolors.HEADER + '     Please Enter MySQL Database name to be created: ' + bcolors.ENDC)
+    ###################
+    while mysql_dir_change != 'yes' and mysql_dir_change != 'no':
+        mysql_dir_change = raw_input(bcolors.ENDC + bcolors.HEADER + '\nDo you want to Change Mysql DataDir Path (yes/no): ' + bcolors.ENDC)
+    if mysql_dir_change == 'yes':
+        while mysql_dir_path == '':
+            mysql_dir_path = raw_input(bcolors.HEADER + 'Please Enter MySQL BASE DATA DIR Path [%s]: ' % selected_mount_point + bcolors.ENDC)
+            if mysql_dir_path == '':
+                mysql_dir_path = selected_mount_point
+            elif not os.path.isdir(mysql_dir_path):
+                while create_mysql_dir_path != 'yes' and create_mysql_dir_path != 'no':
+                    create_mysql_dir_path = (bcolors.FAIL + "Path %s not exist! do you want to create this path? (yes/no) " + bcolors.ENDC)
+                if create_mysql_dir_path == 'no':
+                    mysql_dir_path = ''
+    else:
+        mysql_dir_path = 'None'
+    ####################
     while setup_admin_user != 'yes' and setup_admin_user != 'no':
         setup_admin_user = raw_input(bcolors.HEADER + 'Do you want to setup Admin User (yes/no): ' + bcolors.ENDC)
     while setup_firewall != 'yes' and setup_firewall != 'no':
@@ -145,7 +164,7 @@ def get_initials():
         while not nw_licence:
             nw_licence = raw_input(bcolors.HEADER + 'Please Enter Licence Key : ' + bcolors.ENDC)
 
-    return new_user, new_database, setup_mysql, setup_admin_user, setup_firewall, setup_volume, vol_location, selected_mount_point, setup_nrelic, nw_licence
+    return new_user, new_database, setup_mysql, setup_admin_user, setup_firewall, setup_volume, vol_location, selected_mount_point, setup_nrelic, nw_licence, mysql_dir_change, mysql_dir_path
 
 
 def get_log():
@@ -278,7 +297,7 @@ def init(data):
             load.stop(0)
 
 
-def setup(new_user, new_database):
+def setup(new_user, new_database, change_dir, dir_path):
     mysql_root_pass = ''.join(rnd.choice(t_chars) for i in range(mp_len))
     load = Loader(msg=bcolors.OKBLUE + 'Installing Mysql' + bcolors.ENDC)
     load.start()
@@ -322,6 +341,52 @@ def setup(new_user, new_database):
     except:
         load.stop(1)
 
+####################
+    if change_dir == 'yes':
+        load = Loader(msg=bcolors.OKBLUE + 'Changing Data Dir' + bcolors.ENDC)
+        load.start()
+        if int(subprocess.check_output("service mysql stop 1>%s 2>>%s; echo $?" % (temp_file, temp_file), shell=True)) != 0:
+            load.stop(1, msg='Failed to Stop Mysql Service')
+        else:
+            load.stop(0, msg='Started')
+
+            load = Loader(msg=bcolors.OKBLUE + 'Backing up Data' + bcolors.ENDC)
+            load.start()
+            if int(subprocess.check_output("cd /var/lib;dt=`date +%Y_%m_%d-%H_%M_%S`;" + "tar cvf mysql.$dt.tar.gz mysql 1>%s 2>>%s; echo $?" % (temp_file, temp_file), shell=True)) != 0:
+                load.stop(1)
+            else:
+                load.stop(0)
+
+                load = Loader(msg=bcolors.OKBLUE + 'Syncing Data' + bcolors.ENDC)
+                load.start()
+                if int(subprocess.check_output("rsync -av /var/lib/mysql %s 1>%s 2>>%s; echo $?" % (dir_path, temp_file, temp_file), shell=True)) != 0:
+                    load.stop(1)
+                else:
+                    load.stop(0)
+
+                    load = Loader(msg=bcolors.OKBLUE + 'Configuring AppArmor Access Control' + bcolors.ENDC)
+                    load.start()
+                    if int(subprocess.check_output("echo 'alias /var/lib/mysql/ -> %smysql/,' >> /etc/apparmor.d/tunables/alias; echo $?" % dir_path, shell=True)) != 0:
+                        load.stop(1)
+                    else:
+                        load.stop(0)
+
+                        load = Loader(msg=bcolors.OKBLUE + 'Configuring MySQL' + bcolors.ENDC)
+                        load.start()
+                        if int(subprocess.check_output("""echo '[mysqld]' >> %s;echo 'datadir = %smysql' >> %s; echo $?""" % ('/etc/mysql/my.cnf', dir_path, '/etc/mysql/my.cnf'), shell=True)) != 0:
+                            load.stop(1)
+                        else:
+                            load.stop(0)
+
+                            load = Loader(msg=bcolors.OKBLUE + 'Restarting AppArmor Access Control' + bcolors.ENDC)
+                            load.start()
+                            if int(subprocess.check_output("service apparmor restart 1>%s 2>>%s; echo $?" % (temp_file, temp_file), shell=True)) != 0:
+                                load.stop(1)
+                            else:
+                                load.stop(0)
+
+
+        #############################3
     load = Loader(msg=bcolors.OKBLUE + 'Restarting Mysql' + bcolors.ENDC)
     load.start()
     if int(subprocess.check_output('service mysql restart 1>%s 2>>%s; echo $?' % (temp_file, temp_file), shell=True)) != 0:
@@ -873,7 +938,7 @@ if __name__ == '__main__':
 
     # Mysql Setup
     if data[2] == 'yes':
-        mysql_info = setup(data[0], data[1])
+        mysql_info = setup(data[0], data[1], data[10], data[11])
         if mysql_info:
             try:
                 print bcolors.BOLD + 'Mysql Root Password: ' + bcolors.BOLD + mysql_info[0] + bcolors.ENDC
@@ -945,13 +1010,16 @@ if __name__ == '__main__':
     if data[8] == 'yes':
         nrstatus = setup_newrelic(data[9],)
     else:
-        nrstatus = 'Not Installed'
+        nrstatus = ''
 
-    newrelic_details = """
-        Newrelic Details:
+    if nrstatus:
+        newrelic_details = """
+            Newrelic Details:
 
-            NewRelic Agent: %s
-            """ % nrstatus
+                NewRelic Agent: %s
+                """ % nrstatus
+    else:
+        newrelic_details = ""
 
     mail_head = """Hello,
         You are getting this mail from DO Automated Installation Script.
