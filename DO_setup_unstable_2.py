@@ -17,178 +17,7 @@ import array
 import threading
 import time
 import unicodedata
-import datetime
-import platform
-
-
-mail_from = 'techsupport@thesynapses.com'
-mail_pass = 'ils_2020'
-mail_to = 'p.patel@thesynapses.com'
-mp_len = 15
-t_chars = string.ascii_letters + string.digits + '@#^*:.?-_[]{}'
-rnd = random.SystemRandom()
-hostname = socket.gethostname()
-app_dir = os.path.join(os.environ['HOME'], 'DO_Automation')
-worksheet_name = hostname + '-checklist.xlsx'
-temp_file = '/tmp/automation_script.temp'
-log_file = os.path.join(app_dir, hostname + '-script.log')
-default_firewall_allowed_list = {
-    '22': ['159.203.178.175', '103.9.13.146'],
-    '3306': ['54.0.0.0/8', '52.0.0.0/8', '104.131.177.5', '104.131.177.229', '103.9.13.146'],
-    '80': ['ALL'],
-    '443': ['ALL'],
-}
-
-
-def create_check_list(sheet):
-    load = Loader(msg=bcolors.OKBLUE + 'Writing Sheet' + bcolors.ENDC)
-    load.start()
-    try:
-        import xlsxwriter
-        load.stop(0)
-        d_t = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
-        workbook = xlsxwriter.Workbook(sheet)
-        worksheet = workbook.add_worksheet()
-        align_r = workbook.add_format({'align': 'right', 'font_name': 'Arial'})
-        align_l = workbook.add_format({'align': 'left', 'font_name': 'Arial'})
-        align_c = workbook.add_format({'align': 'center', 'font_name': 'Arial'})
-        bold = workbook.add_format({'bold': True, 'font_name': 'Arial'})
-        cols_head = workbook.add_format({'bold': True, 'align': 'center', 'font_name': 'Arial'})
-        head_format = workbook.add_format({
-            'bold': 1,
-            'border': 1,
-            'align': 'center',
-            'valign': 'vcenter',
-            'font_size': 12,
-            'font_name': 'Arial',
-        })
-        worksheet.set_row(0, 30)
-        worksheet.set_row(25, 30)
-        worksheet.set_row(26, 30)
-        worksheet.set_row(27, 30)
-        worksheet.set_row(30, 30)
-        worksheet.set_column('A:A', 5)
-        worksheet.set_column('B:B', 25)
-        worksheet.set_column('C:C', 30)
-        worksheet.set_column('D:D', 10)
-
-        worksheet.merge_range('A1:D1', '%s Server Creation and Configurations Checklist' % hostname, head_format)
-        worksheet.merge_range('A2:D2', 'Creation Date: %s' % d_t, align_r)
-
-        worksheet.write('A3', 'S.No.', cols_head)
-        worksheet.write('B3', 'ITEMS', cols_head)
-        worksheet.write('D3', 'STATUS', cols_head)
-
-        worksheet.write('A4', 1, align_c)
-        worksheet.write('B4', 'Approval for creating Machine')
-        worksheet.write('C4', 'Sureel, Vinesh')
-        worksheet.write('D4', 'Done')
-
-        worksheet.write('A5', 2, align_c)
-        worksheet.write('B5', 'Machine', align_l)
-        worksheet.write('B6', 'Type', align_l)
-        worksheet.write('B7', 'Name', align_l)
-        worksheet.write('B8', 'OS', align_l)
-        try:
-            worksheet.write('C5', '%s' % platform.system(), align_l)
-            worksheet.write('C6', '%s' % platform.machine(), align_l)
-            worksheet.write('C7', '%s' % platform.node(), align_l)
-            os = ''
-            for w in platform.dist(): os += ' ' + str(w)
-            worksheet.write('C8', '%s' % os.lstrip(), align_l)
-            worksheet.write('D5', 'Done', align_l)
-        except:
-            worksheet.write('D5', 'UnDone', align_l)
-
-        worksheet.write('A9', 3, align_c)
-        worksheet.write('B9', 'MySQL', align_l)
-        worksheet.write('B10', 'Version', align_l)
-        worksheet.write('B11', 'Database Created', align_l)
-        worksheet.write('B12', 'User Created', align_l)
-        worksheet.write('B13', 'root Remote login', align_l)
-        worksheet.write('C9', 'Not Installed', align_l)  # Mysql Installation Status
-        worksheet.write('D9', 'Done', align_l)  # Whole Mysql Status (Done/Undone)
-        worksheet.write('C10', 'N/A', align_l)  # MySQL Version (value)
-        worksheet.write('C11', 'N/A', align_l)  # Database Name (value)
-        worksheet.write('C12', 'N/A', align_l)  # User Name (value)
-        worksheet.write('C13', 'N/A', align_l)  # MySQL root Auth Status (Enabled/Disabled)
-
-        worksheet.write('A14', 4, align_c)
-        worksheet.write('B14', 'SSH', align_l)
-        worksheet.write('B15', 'Admin User', align_l)
-        worksheet.write('B16', 'Key Authentication', align_l)
-        worksheet.write('B17', 'Root Login', align_l)
-        worksheet.write('B18', 'Password Login', align_l)
-        worksheet.write('D14', 'Done', align_l)  # Whole SSH Status (Done/Undone)
-        worksheet.write('C15', 'N/A', align_l)  # Admin user name (value)
-        worksheet.write('C16', 'N/A', align_l)  # Admin Key Auth Status (Enabled/Disabled)
-        worksheet.write('C17', 'N/A', align_l)  # Root Login (Enabled/Disabled)
-        worksheet.write('C18', 'N/A', align_l)  # Password Login (Enabled/Disabled)
-
-        worksheet.write('A19', 5, align_c)
-        worksheet.write('B19', 'Firewall', align_l)
-        worksheet.write('B20', 'Rule Class', align_l)
-        worksheet.write('D19', 'Done', align_l)  # Whole Firewall Status (Done/Undone)
-        worksheet.write('C20', 'N/A', align_l)  # Rule Class (Synapse Default/Manual)
-
-        worksheet.write('A21', 6, align_c)
-        worksheet.write('B21', 'NR Agent', align_l)
-        worksheet.write('B21', 'NR MySQL Plugin', align_l)
-        worksheet.write('C21', 'N/A', align_l)  # NR Agent Status (Installed / N/A)
-        worksheet.write('D21', 'Done', align_l)  # Whole NR Agent Status (Done/Undone)
-        worksheet.write('C21', 'N/A', align_l)  # NR Mysql Plugin Status (Installed / N/A)
-        worksheet.write('D21', 'Done', align_l)  # Whole NR Mysql Plugin Status (Done/Undone)
-
-        worksheet.write('B23', 'Check Login', align_l)
-        worksheet.write('C23', '', align_l)
-        worksheet.write('D23', 'UnDone', align_l)
-        worksheet.write('B24', 'Check DB Connectivity', align_l)
-        worksheet.write('C24', '', align_l)
-        worksheet.write('D24', 'UnDone', align_l)
-
-        worksheet.write('B26:C26', 'Created By: ', align_l)
-        worksheet.write('B27:C27', 'Verified By: Vikash Mishra', align_l)
-        worksheet.write('B28:C28', 'PM: Vinesh Sir', align_l)
-
-        worksheet.write('A30', 'S.No.', bold)
-        worksheet.write('B30', 'Account/Team', bold)
-        worksheet.write('C30', 'Status', bold)
-        worksheet.write('D30', 'Project', bold)
-        worksheet.write('E30', 'Hostname', bold)
-        worksheet.write('F30', 'Desc', bold)
-        worksheet.write('G30', 'Created By', bold)
-        worksheet.write('H30', 'Creation Date', bold)
-        worksheet.write('I30', 'IP Address', bold)
-        worksheet.write('J30', 'Users', bold)
-        worksheet.write('K30', 'Password', bold)
-        worksheet.write('L30', 'SSH Key Path', bold)
-        worksheet.write('M30', 'MySQL User', bold)
-        worksheet.write('N30', 'Password', bold)
-        worksheet.write('O30', 'Other Users', bold)
-        worksheet.write('P30', 'Password', bold)
-        worksheet.write('Q30', 'Update/Comments', bold)
-
-        worksheet.write('A31', '', align_c)
-        worksheet.write('B31', '', align_c)
-        worksheet.write('C31', 'Active', align_c)
-        worksheet.write('D31', '', align_c)
-        worksheet.write('E31', '%s' % hostname, align_c)  # hostname
-        worksheet.write('F31', '', align_c)
-        worksheet.write('G31', '', align_c)
-        worksheet.write('H31', '', align_c)
-        worksheet.write('I31', '', align_c)  # IP Address
-        worksheet.write('J31', 'sysadmin', align_c)  # Must be sysadmin
-        worksheet.write('K31', '', align_c)
-        worksheet.write('L31', '', align_c)  # SSH Key Path
-        worksheet.write('M31', 'root', align_c)
-        worksheet.write('N31', '', align_c)  # MySQL Root Password
-        worksheet.write('O31', '', align_c)  # Other User
-        worksheet.write('P31', '', align_c)  # Other User Password
-        worksheet.write('Q31', '', align_c)
-
-        return worksheet, workbook
-    except:
-        load.stop(1)
+import glob
 
 
 class bcolors:
@@ -229,6 +58,7 @@ class Loader(threading.Thread):
     def stop(self, status, msg=''):
         self.flag = True
         self.out.flush()
+        time.sleep(1)
         result = ''
         if status == 1:
             result = bcolors.FAIL + "Failed!" + bcolors.ENDC
@@ -240,17 +70,67 @@ class Loader(threading.Thread):
             result = result
         if msg:
             result = msg
-        write_log(self.msg + " ... " + result)
-        time.sleep(1)
         print(self.msg + " ... " + result)
 
 
+mail_from = 'techsupport@thesynapses.com'
+mail_pass = 'ils_2020'
+mail_to = 'p.patel@thesynapses.com'
+mp_len = 15
+t_chars = string.ascii_letters + string.digits + '@#^*:.?-_[]{}'
+rnd = random.SystemRandom()
+temp_file = '/tmp/automation_script.log'
+hostname = socket.gethostname()
+alt_pass = ''.join(rnd.choice(t_chars) for i in range(20))
+default_firewall_allowed_list = {
+    '22': ['159.203.178.175', '103.9.13.146'],
+    '3306': ['107.0.0.0/8', '34.0.0.0/8', '54.0.0.0/8', '52.0.0.0/8', '104.131.177.5', '104.131.177.229', '103.9.13.146'],
+    '5432': ['107.0.0.0/8', '34.0.0.0/8', '54.0.0.0/8', '52.0.0.0/8', '104.131.177.5', '104.131.177.229', '103.9.13.146'],
+    '80': ['ALL'],
+    '443': ['ALL'],
+}
+
+
 def get_initials():
+    setup_volume = ''
+    vol_location = ''
+    selected_mount_point = '/mnt/%s-data/' % hostname
     setup_mysql = ''
     new_user = ''
     new_database = ''
     setup_admin_user = ''
     setup_firewall = ''
+    setup_nrelic = ''
+    nw_licence = ''
+    mysql_dir_change = ''
+    mysql_dir_path = ''
+    create_mysql_dir_path = ''
+    while setup_volume != 'yes' and setup_volume != 'no':
+        setup_volume = raw_input(bcolors.ENDC + bcolors.HEADER + '\nDo you want to setup Volume (yes/no): ' + bcolors.ENDC)
+    if setup_volume == 'yes':
+        partitions = glob.glob('/dev/disk/by-id/*')
+        id = 0
+        part_list = {}
+        for partition in partitions:
+            part_list[id] = partition
+            id += 1
+        for id in part_list:
+            print bcolors.BOLD, id, part_list[id], bcolors.ENDC
+
+        while vol_location == '':
+            select_disk = raw_input(bcolors.HEADER + 'Please Enter ID of disk you want to set as a External Storage: ' + bcolors.ENDC)
+            try:
+                print bcolors.OKBLUE + 'Volume selected ' + part_list[int(select_disk)] + bcolors.ENDC
+                vol_location = part_list[int(select_disk)]
+            except:
+                print(bcolors.FAIL + "Please enter Valid Index" + bcolors.ENDC)
+                vol_location = ''
+        select_mount_point = raw_input(bcolors.HEADER + 'Please select mount point [%s]: ' % selected_mount_point + bcolors.ENDC)
+        if select_mount_point == '':
+            select_mount_point = selected_mount_point
+        else:
+            selected_mount_point = select_mount_point
+        print bcolors.OKBLUE + 'Mount Point Selected ' + select_mount_point + bcolors.ENDC
     while setup_mysql != 'yes' and setup_mysql != 'no':
         setup_mysql = raw_input(bcolors.ENDC + bcolors.HEADER + '\nDo you want to Newly setup Mysql (yes/no): ' + bcolors.ENDC)
     if setup_mysql == 'yes':
@@ -258,11 +138,33 @@ def get_initials():
             new_user = raw_input(bcolors.HEADER + '     Please Enter MySQL username to be created: ' + bcolors.ENDC)
         while not new_database:
             new_database = raw_input(bcolors.HEADER + '     Please Enter MySQL Database name to be created: ' + bcolors.ENDC)
+    ###################
+    while mysql_dir_change != 'yes' and mysql_dir_change != 'no':
+        mysql_dir_change = raw_input(bcolors.ENDC + bcolors.HEADER + '\nDo you want to Change Mysql DataDir Path (yes/no): ' + bcolors.ENDC)
+    if mysql_dir_change == 'yes':
+        while mysql_dir_path == '':
+            mysql_dir_path = raw_input(bcolors.HEADER + 'Please Enter MySQL BASE DATA DIR Path [%s]: ' % selected_mount_point + bcolors.ENDC)
+            if mysql_dir_path == '':
+                mysql_dir_path = selected_mount_point
+            elif not os.path.isdir(mysql_dir_path):
+                while create_mysql_dir_path != 'yes' and create_mysql_dir_path != 'no':
+                    create_mysql_dir_path = (bcolors.FAIL + "Path %s not exist! do you want to create this path? (yes/no) " + bcolors.ENDC)
+                if create_mysql_dir_path == 'no':
+                    mysql_dir_path = ''
+    else:
+        mysql_dir_path = 'None'
+    ####################
     while setup_admin_user != 'yes' and setup_admin_user != 'no':
-        setup_admin_user = raw_input(bcolors.HEADER + 'Do you want to setup Admin User(yes/no): ' + bcolors.ENDC)
+        setup_admin_user = raw_input(bcolors.HEADER + 'Do you want to setup Admin User (yes/no): ' + bcolors.ENDC)
     while setup_firewall != 'yes' and setup_firewall != 'no':
         setup_firewall = raw_input(bcolors.HEADER + 'Do you want to setup firewall (yes/no): ' + bcolors.ENDC)
-    return new_user, new_database, setup_mysql, setup_admin_user, setup_firewall
+    while setup_nrelic != 'yes' and setup_nrelic != 'no':
+        setup_nrelic = raw_input(bcolors.HEADER + 'Do you want to setup NewRelic (yes/no): ' + bcolors.ENDC)
+    if setup_nrelic == 'yes':
+        while not nw_licence:
+            nw_licence = raw_input(bcolors.HEADER + 'Please Enter Licence Key : ' + bcolors.ENDC)
+
+    return new_user, new_database, setup_mysql, setup_admin_user, setup_firewall, setup_volume, vol_location, selected_mount_point, setup_nrelic, nw_licence, mysql_dir_change, mysql_dir_path
 
 
 def get_log():
@@ -270,11 +172,6 @@ def get_log():
     with open(temp_file, 'r') as file:
         logs = file.read()
     return logs
-
-
-def write_log(message):
-    with open(log_file, 'a') as file:
-        file.write(message)
 
 
 def send_mail(text='', keys=None):
@@ -328,15 +225,6 @@ def init(data):
     except:
         load.stop(1)
 
-    load = Loader(msg=bcolors.OKBLUE + 'Creating App Dir' + bcolors.ENDC)
-    load.start()
-    try:
-        if not os.path.exists(app_dir):
-            os.makedirs(app_dir)
-        load.stop(0)
-    except:
-        load.stop(1)
-
     load = Loader(msg=bcolors.OKBLUE + 'Adding Universe Repository' + bcolors.ENDC)
     load.start()
     if int(subprocess.check_output('apt-add-repository universe 1>%s 2>>%s; echo $?' % (temp_file, temp_file), shell=True)) != 0:
@@ -344,6 +232,17 @@ def init(data):
         print bcolors.FAIL + get_log() + bcolors.ENDC
     else:
         load.stop(0)
+
+    if data[8] == 'yes':
+        load = Loader(msg=bcolors.OKBLUE + 'Adding NewRelic Repository' + bcolors.ENDC)
+        load.start()
+        if int(subprocess.check_output("echo 'deb http://apt.newrelic.com/debian/ newrelic non-free' | sudo tee /etc/apt/sources.list.d/newrelic.list 1>%s 2>>%s; echo $?" % (temp_file, temp_file), shell=True)) != 0:
+            load.stop(1)
+        elif int(subprocess.check_output("wget -O- https://download.newrelic.com/548C16BF.gpg | apt-key add - 1>%s 2>>%s; echo $?" % (temp_file, temp_file), shell=True)) != 0:
+            load.stop(1)
+            print bcolors.FAIL + get_log() + bcolors.ENDC
+        else:
+            load.stop(0)
 
     load = Loader(msg=bcolors.OKBLUE + 'Updating Repository' + bcolors.ENDC)
     load.start()
@@ -356,14 +255,6 @@ def init(data):
     load = Loader(msg=bcolors.OKBLUE + 'Installing Python Package Installer' + bcolors.ENDC)
     load.start()
     if int(subprocess.check_output('apt-get -y install python-pip 1>%s 2>>%s; echo $?' % (temp_file, temp_file), shell=True)) != 0:
-        load.stop(1)
-        print bcolors.FAIL + get_log() + bcolors.ENDC
-    else:
-        load.stop(0)
-
-    load = Loader(msg=bcolors.OKBLUE + 'Installing xlsx Writer Package' + bcolors.ENDC)
-    load.start()
-    if int(subprocess.check_output('pip install -U xlsxwriter 1>%s 2>>%s; echo $?' % (temp_file, temp_file), shell=True)) != 0:
         load.stop(1)
         print bcolors.FAIL + get_log() + bcolors.ENDC
     else:
@@ -406,7 +297,7 @@ def init(data):
             load.stop(0)
 
 
-def setup(new_user, new_database):
+def setup(new_user, new_database, change_dir, dir_path):
     mysql_root_pass = ''.join(rnd.choice(t_chars) for i in range(mp_len))
     load = Loader(msg=bcolors.OKBLUE + 'Installing Mysql' + bcolors.ENDC)
     load.start()
@@ -418,11 +309,8 @@ def setup(new_user, new_database):
         print get_log() + bcolors.ENDC
     elif int(subprocess.check_output('apt-get -y install mysql-server 1>%s 2>>%s; echo $?' % (temp_file, temp_file), shell=True)) != 0:
         load.stop(1)
-        worksheet.write('C9', 'Failed')  # Mysql Installation Status
-        worksheet.write('D9', 'UnDone')  # Whole Mysql Status (Done/Undone)
         print bcolors.FAIL + get_log() + bcolors.ENDC
     else:
-        worksheet.write('C9', 'Installed')  # Mysql Installation Status
         load.stop(0)
 
     load = Loader(msg=bcolors.OKBLUE + 'Backing up Mysql Config' + bcolors.ENDC)
@@ -453,6 +341,52 @@ def setup(new_user, new_database):
     except:
         load.stop(1)
 
+####################
+    if change_dir == 'yes':
+        load = Loader(msg=bcolors.OKBLUE + 'Changing Data Dir' + bcolors.ENDC)
+        load.start()
+        if int(subprocess.check_output("service mysql stop 1>%s 2>>%s; echo $?" % (temp_file, temp_file), shell=True)) != 0:
+            load.stop(1, msg='Failed to Stop Mysql Service')
+        else:
+            load.stop(0, msg='Started')
+
+            load = Loader(msg=bcolors.OKBLUE + 'Backing up Data' + bcolors.ENDC)
+            load.start()
+            if int(subprocess.check_output("cd /var/lib;dt=`date +%Y_%m_%d-%H_%M_%S`;" + "tar cvf mysql.$dt.tar.gz mysql 1>%s 2>>%s; echo $?" % (temp_file, temp_file), shell=True)) != 0:
+                load.stop(1)
+            else:
+                load.stop(0)
+
+                load = Loader(msg=bcolors.OKBLUE + 'Syncing Data' + bcolors.ENDC)
+                load.start()
+                if int(subprocess.check_output("rsync -av /var/lib/mysql %s 1>%s 2>>%s; echo $?" % (dir_path, temp_file, temp_file), shell=True)) != 0:
+                    load.stop(1)
+                else:
+                    load.stop(0)
+
+                    load = Loader(msg=bcolors.OKBLUE + 'Configuring AppArmor Access Control' + bcolors.ENDC)
+                    load.start()
+                    if int(subprocess.check_output("echo 'alias /var/lib/mysql/ -> %smysql/,' >> /etc/apparmor.d/tunables/alias; echo $?" % dir_path, shell=True)) != 0:
+                        load.stop(1)
+                    else:
+                        load.stop(0)
+
+                        load = Loader(msg=bcolors.OKBLUE + 'Configuring MySQL' + bcolors.ENDC)
+                        load.start()
+                        if int(subprocess.check_output("""echo '[mysqld]' >> %s;echo 'datadir = %smysql' >> %s; echo $?""" % ('/etc/mysql/my.cnf', dir_path, '/etc/mysql/my.cnf'), shell=True)) != 0:
+                            load.stop(1)
+                        else:
+                            load.stop(0)
+
+                            load = Loader(msg=bcolors.OKBLUE + 'Restarting AppArmor Access Control' + bcolors.ENDC)
+                            load.start()
+                            if int(subprocess.check_output("service apparmor restart 1>%s 2>>%s; echo $?" % (temp_file, temp_file), shell=True)) != 0:
+                                load.stop(1)
+                            else:
+                                load.stop(0)
+
+
+        #############################3
     load = Loader(msg=bcolors.OKBLUE + 'Restarting Mysql' + bcolors.ENDC)
     load.start()
     if int(subprocess.check_output('service mysql restart 1>%s 2>>%s; echo $?' % (temp_file, temp_file), shell=True)) != 0:
@@ -472,54 +406,35 @@ def setup(new_user, new_database):
                 load.stop(0)
                 newpass = ''.join(rnd.choice(t_chars) for i in range(mp_len))
                 cursor = dbserver.cursor()
-
-                load = Loader(msg=bcolors.OKBLUE + '   [+] Checking Version!' + bcolors.ENDC)
-                load.start()
-                try:
-                    cursor.execute("SELECT VERSION()")
-                    dbserver.commit()
-                    ver = cursor.fetchone()
-                    worksheet.write('C10', ver)  # MySQL Version (value)
-                    load.stop(0)
-                except MySQLdb.Error, e:
-                    dbserver.rollback()
-                    load.stop(1)
-                    print(str(e)) + bcolors.ENDC
-                    worksheet.write('C10', 'Unable to get')  # MySQL Version (value)
-
                 load = Loader(msg=bcolors.OKBLUE + '   [+] Creating database!' + bcolors.ENDC)
                 load.start()
                 try:
                     cursor.execute('CREATE DATABASE %s' % new_database)
                     dbserver.commit()
-                    worksheet.write('C11', new_database)  # Database Name (value)
                     load.stop(0)
                 except MySQLdb.Error, e:
                     dbserver.rollback()
                     load.stop(1)
-                    worksheet.write('C11', 'Failed')  # Database Name (value)
-                    worksheet.write('D9', 'UnDone')  # Whole Mysql Status (Done/Undone)
                     print(str(e)) + bcolors.ENDC
                     new_database = 'None'
                 load = Loader(msg=bcolors.OKBLUE + '   [+] Setting Local Permissions!' + bcolors.ENDC)
                 load.start()
                 try:
-                    cursor.execute('GRANT ALL on %s.* to "%s"@"localhost" identified by "%s"' % (new_database, new_user, newpass))
+                    cursor.execute('CREATE USER "%s"@"' % new_user + '%"' + ' identified by "%s"' % newpass)
+                    cursor.execute('CREATE USER "webops"@"' + '%"' + ' identified by "%s"' % alt_pass)
                     dbserver.commit()
-                    worksheet.write('C12', new_user)  # User Name (value)
                     load.stop(0)
                     m_l_u = True
                 except MySQLdb.Error, e:
                     dbserver.rollback()
                     load.stop(1)
                     print(str(e)) + bcolors.ENDC
-                    worksheet.write('C12', 'Failed')  # User Name (value)
-                    worksheet.write('D9', 'UnDone')  # Whole Mysql Status (Done/Undone)
                     m_l_u = False
                 load = Loader(msg=bcolors.OKBLUE + '   [+] Setting Remote Permissions!' + bcolors.ENDC)
                 load.start()
                 try:
-                    cursor.execute('GRANT ALL on %s.* to "%s"@"' % (new_database, new_user) + '%"' + ' identified by "%s"' % newpass)
+                    cursor.execute('GRANT ALL on %s.* to "%s"@"' % (new_database, new_user) + '%"')
+                    cursor.execute('GRANT ALL on *.* to "webops"@"%"')
                     dbserver.commit()
                     load.stop(0)
                     m_r_u = True
@@ -527,8 +442,6 @@ def setup(new_user, new_database):
                     dbserver.rollback()
                     load.stop(1)
                     print(str(e)) + bcolors.ENDC
-                    worksheet.write('C12', 'Failed')  # User Name (value)
-                    worksheet.write('D9', 'UnDone')  # Whole Mysql Status (Done/Undone)
                     m_r_u = False
                 if m_l_u is False and m_r_u is False:
                     new_user = 'None'
@@ -543,7 +456,6 @@ def setup(new_user, new_database):
                 load.stop(1)
                 print (bcolors.FAIL + 'ERROR: ' + str(e) + bcolors.ENDC)
                 sys.stdout.write(bcolors.OKBLUE + 'Setting Mysql Database and user! ... ' + bcolors.ENDC)
-                worksheet.write('D9', 'UnDone')  # Whole Mysql Status (Done/Undone)
                 print bcolors.WARNING + 'Skipped' + bcolors.ENDC
         except:
             load.stop(1)
@@ -553,6 +465,12 @@ def add_user():
     load = Loader(msg=bcolors.OKBLUE + 'Adding Admin User' + bcolors.ENDC)
     load.start()
     if int(subprocess.check_output("useradd -m -s /bin/bash sysadmin 1>%s 2>>%s; echo $?" % (temp_file, temp_file), shell=True)) != 0:
+        load.stop(1)
+        print bcolors.FAIL + get_log() + bcolors.ENDC
+    elif int(subprocess.check_output("useradd -m -s /bin/bash -d /var/www webops 1>%s 2>>%s; echo $?" % (temp_file, temp_file), shell=True)) != 0:
+        load.stop(1)
+        print bcolors.FAIL + get_log() + bcolors.ENDC
+    elif int(subprocess.check_output("usermod -p $(echo %s | openssl passwd -1 -stdin) webops 1>%s 2>>%s; echo $?" % (alt_pass, temp_file, temp_file), shell=True)) != 0:
         load.stop(1)
         print bcolors.FAIL + get_log() + bcolors.ENDC
     else:
@@ -574,7 +492,7 @@ def add_user():
     else:
         load.stop(0)
 
-    load = Loader(msg=bcolors.OKBLUE + 'Adding Putty Liberary' + bcolors.ENDC)
+    load = Loader(msg=bcolors.OKBLUE + 'Adding Putty Lib' + bcolors.ENDC)
     load.start()
     if int(subprocess.check_output("apt-get install -y putty 1>%s 2>>%s; echo $?" % (temp_file, temp_file), shell=True)) != 0:
         load.stop(1)
@@ -594,6 +512,8 @@ def add_user():
     load.start()
     if int(subprocess.check_output("echo 'sysadmin ALL=(ALL)       NOPASSWD: ALL' >> /etc/sudoers; echo $?", shell=True)) != 0:
         load.stop(1)
+    if int(subprocess.check_output("echo 'webops ALL=(ALL)       NOPASSWD: ALL' >> /etc/sudoers; echo $?", shell=True)) != 0:
+        load.stop(1)
     else:
         load.stop(0)
     ssh_key = subprocess.check_output("su -c 'echo $HOME' sysadmin", shell=True) + '/.ssh/%s-sysadmin' % hostname
@@ -608,6 +528,40 @@ def add_user():
         return keys
     else:
         return 'None'
+
+
+def volume_setup(vol_location, mount_point):
+    load = Loader(msg=bcolors.OKBLUE + 'Making FileSystem on Volume' + bcolors.ENDC)
+    load.start()
+    if int(subprocess.check_output("mkfs.ext4 -F %s 1>%s 2>>%s; echo $?" % (vol_location, temp_file, temp_file), shell=True)) != 0:
+        load.stop(1)
+        print bcolors.FAIL + get_log() + bcolors.ENDC
+    else:
+        load.stop(0)
+
+        load = Loader(msg=bcolors.OKBLUE + 'Creating Volume Mount Point' + bcolors.ENDC)
+        load.start()
+        if int(subprocess.check_output("mkdir -p %s; 1>%s 2>>%s; echo $?" % (mount_point, temp_file, temp_file), shell=True)) != 0:
+            load.stop(1)
+            print bcolors.FAIL + get_log() + bcolors.ENDC
+        else:
+            load.stop(0)
+
+            load = Loader(msg=bcolors.OKBLUE + 'Mounting Volume' + bcolors.ENDC)
+            load.start()
+            if int(subprocess.check_output("mount -o discard,defaults %s %s; 1>%s 2>>%s; echo $?" % (vol_location, mount_point, temp_file, temp_file), shell=True)) != 0:
+                load.stop(1)
+                print bcolors.FAIL + get_log() + bcolors.ENDC
+            else:
+                load.stop(0)
+
+                load = Loader(msg=bcolors.OKBLUE + 'Writing fstab' + bcolors.ENDC)
+                load.start()
+                if int(subprocess.check_output('echo %s %s ext4 defaults,nofail,discard 0 0 >> /etc/fstab; echo $?' % (vol_location, mount_point), shell=True)) != 0:
+                    load.stop(1)
+                    print bcolors.FAIL + get_log() + bcolors.ENDC
+                else:
+                    load.stop(0)
 
 
 def all_interfaces():
@@ -936,6 +890,37 @@ def save_applied_rules():
     else:
         load.stop(0)
 
+
+def setup_newrelic(licence):
+    load = Loader(msg=bcolors.OKBLUE + 'Installing NewRelic' + bcolors.ENDC)
+    load.start()
+    if int(subprocess.check_output('apt-get -y install newrelic-sysmond 1>%s 2>>%s; echo $?' % (temp_file, temp_file), shell=True)) != 0:
+        load.stop(1)
+        print bcolors.FAIL + get_log() + bcolors.ENDC
+    else:
+        load.stop(0)
+
+    load = Loader(msg=bcolors.OKBLUE + 'Setup NewRelic Licence' + bcolors.ENDC)
+    load.start()
+    if int(subprocess.check_output('nrsysmond-config --set license_key=%s 1>%s 2>>%s; echo $?' % (licence, temp_file, temp_file), shell=True)) != 0:
+        load.stop(1)
+        print bcolors.FAIL + get_log() + bcolors.ENDC
+    else:
+        load.stop(0)
+
+    load = Loader(msg=bcolors.OKBLUE + 'Starting NewRelic Service' + bcolors.ENDC)
+    load.start()
+    if int(subprocess.check_output('/etc/init.d/newrelic-sysmond start 1>%s 2>>%s; echo $?' % (temp_file, temp_file), shell=True)) != 0:
+        load.stop(1)
+        print bcolors.FAIL + get_log() + bcolors.ENDC
+        setup_newrelic_r = 'Failed'
+    else:
+        load.stop(0)
+        setup_newrelic_r = 'Installed and Configured'
+
+    return setup_newrelic_r
+
+
 # --------------------------------------------------
 if __name__ == '__main__':
     print bcolors.UNDERLINE + bcolors.HEADER + bcolors.BOLD + "Welcome to Synapse DO Automated installation" + bcolors.ENDC
@@ -947,20 +932,20 @@ if __name__ == '__main__':
             data = get_initials()
     init(data)
 
-    # Getting Worksheet
-    g_sheet = create_check_list(os.path.join(app_dir, worksheet_name))
-    worksheet = g_sheet[0]
-    workbook = g_sheet[1]
+    # Volume Setup
+    if data[5] == 'yes':
+        volume_setup(data[6], data[7])
 
     # Mysql Setup
     if data[2] == 'yes':
-        mysql_info = setup(data[0], data[1])
+        mysql_info = setup(data[0], data[1], data[10], data[11])
         if mysql_info:
             try:
                 print bcolors.BOLD + 'Mysql Root Password: ' + bcolors.BOLD + mysql_info[0] + bcolors.ENDC
                 print bcolors.BOLD + 'Mysql Database name: ' + bcolors.BOLD + mysql_info[1] + bcolors.ENDC
                 print bcolors.BOLD + 'Mysql User name: ' + bcolors.BOLD + mysql_info[2] + bcolors.ENDC
                 print bcolors.BOLD + 'Mysql User Password: ' + bcolors.BOLD + mysql_info[3] + bcolors.ENDC
+                print bcolors.BOLD + 'Mysql webops Password: ' + bcolors.BOLD + alt_pass + bcolors.ENDC
             except:
                 pass
         try:
@@ -970,7 +955,8 @@ if __name__ == '__main__':
             Mysql Root Password: %s
             Mysql Database name: %s
             Mysql User name: %s
-            Mysql User Password: %s \n""" % (mysql_info[0], mysql_info[1], mysql_info[2], mysql_info[3])
+            Mysql User Password: %s
+            Mysql webops: %s \n""" % (mysql_info[0], mysql_info[1], mysql_info[2], mysql_info[3], alt_pass)
         except:
             mysql_details = ''
     else:
@@ -987,9 +973,12 @@ if __name__ == '__main__':
             Password: None
             Ssh-Key: """
             if ssh_key != 'None':
-                ssh_details += '<please find attachment> \n'
+                ssh_details += '<please find attachment>'
             else:
-                ssh_details += 'Unable to Create Due to Error \n'
+                ssh_details += 'Unable to Create Due to Error'
+            ssh_details += """
+            webops: %s\n""" % alt_pass
+
         except:
             ssh_details = '\n'
     else:
@@ -1010,7 +999,7 @@ if __name__ == '__main__':
         rules = apply_firewall_rules()
         if rules:
             firewall_details = """
-            Firewall Details:
+        Firewall Details:
             %s
             """ % rules
         else:
@@ -1018,12 +1007,26 @@ if __name__ == '__main__':
     else:
         firewall_details = ""
 
+    if data[8] == 'yes':
+        nrstatus = setup_newrelic(data[9],)
+    else:
+        nrstatus = ''
+
+    if nrstatus:
+        newrelic_details = """
+            Newrelic Details:
+
+                NewRelic Agent: %s
+                """ % nrstatus
+    else:
+        newrelic_details = ""
+
     mail_head = """Hello,
         You are getting this mail from DO Automated Installation Script.
     please find the Details below:
     """
 
-    mail_message = mail_head + mysql_details + ssh_details + firewall_details
+    mail_message = mail_head + mysql_details + ssh_details + newrelic_details + firewall_details
 
     mail_load = Loader(msg=bcolors.OKBLUE + 'Sending Information over Mail' + bcolors.ENDC)
     mail_load.start()
@@ -1043,5 +1046,4 @@ if __name__ == '__main__':
     except:
         print(bcolors.FAIL + 'Unable to Clean script' + bcolors.ENDC)
     load.stop(0)
-    workbook.close()
 

@@ -91,7 +91,7 @@ system_configure_percona_backup(){
     mkdir -p /var/www
     useradd $PERCONA_USER
     usermod -s /bin/bash -d /var/www/ $PERCONA_USER
-    usermod -p $(echo $PERCONA_PASS | openssl passwd -1 -stdin) $PERCONA_USER
+    #usermod -p $(echo $PERCONA_PASS | openssl passwd -1 -stdin) $PERCONA_USER
     echo "$PERCONA_USER ALL=(ALL)       NOPASSWD: ALL" >> /etc/sudoers;
     if [ $? -eq 0 ]; then
         echo "System User $PERCONA_USER is Ready with Password $PERCONA_PASS"
